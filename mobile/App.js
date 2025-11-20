@@ -8,14 +8,16 @@ import { View, ActivityIndicator, Text } from 'react-native';
 import { AuthProvider, AuthContext } from './src/context/AuthContext';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
-import CustomerHomeScreen from './src/screens/CustomerHomeScreen';
-import VendorsScreen from './src/screens/VendorsScreen';
-import OffersScreen from './src/screens/OffersScreen';
+import CustomerHomeScreen from './src/screens/Customers/CustomerHomeScreen';
+import VendorsScreen from './src/screens/Customers/VendorsScreen';
+import OffersScreen from './src/screens/Customers/OffersScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
-import VendorDashboardScreen from './src/screens/VendorDashboardScreen';
-import VendorServeScreen from './src/screens/VendorServeScreen';
-import VendorSettlementsScreen from './src/screens/VendorSettlementsScreen';
-import VendorProfileScreen from './src/screens/VendorProfileScreen';
+import VendorDashboardScreen from './src/screens/vendors/VendorDashboardScreen';
+import VendorServeScreen from './src/screens/vendors/VendorServeScreen';
+import VendorSettlementsScreen from './src/screens/vendors/VendorSettlementsScreen';
+import VendorProfileScreen from './src/screens/vendors/VendorProfileScreen';
+import PaymentScreen from './src/screens/Customers/PaymentScreen';
+
 
 
 const Stack = createNativeStackNavigator();
@@ -169,10 +171,20 @@ const RootNavigator = () => {
 
   // Default -> Customer tabs
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="CustomerTabs" component={CustomerTabs} />
-    </Stack.Navigator>
-  );
+  <Stack.Navigator>
+    <Stack.Screen
+      name="CustomerTabs"
+      component={CustomerTabs}
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen
+      name="Payment"
+      component={PaymentScreen}
+      options={{ title: 'Payment' }}
+    />
+  </Stack.Navigator>
+);
+
 };
 
 export default function App() {
