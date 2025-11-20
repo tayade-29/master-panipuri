@@ -23,6 +23,14 @@ const ProfileScreen = () => {
         <Text style={styles.value}>{user?.role}</Text>
       </View>
 
+      <TouchableOpacity
+  style={styles.referralBtn}
+  onPress={() => navigation.navigate('Referral')}
+>
+  <Text style={styles.referralText}>Referral & Earn</Text>
+</TouchableOpacity>
+
+
       <TouchableOpacity style={styles.button} onPress={logout}>
         <Text style={styles.buttonText}>Logout</Text>
       </TouchableOpacity>
@@ -72,6 +80,19 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
   },
+  referralBtn: {
+  marginTop: 8,
+  paddingVertical: 10,
+  borderRadius: 10,
+  borderWidth: 1,
+  borderColor: '#ff8a00',
+  alignItems: 'center',
+},
+referralText: {
+  color: '#ff8a00',
+  fontWeight: '600',
+},
+
 });
 
 export default ProfileScreen;

@@ -17,6 +17,7 @@ import VendorServeScreen from './src/screens/vendors/VendorServeScreen';
 import VendorSettlementsScreen from './src/screens/vendors/VendorSettlementsScreen';
 import VendorProfileScreen from './src/screens/vendors/VendorProfileScreen';
 import PaymentScreen from './src/screens/Customers/PaymentScreen';
+import CustomerReferralScreen from './src/screens/Customers/CustomerReferralScreen';
 
 
 
@@ -182,6 +183,11 @@ const RootNavigator = () => {
       component={PaymentScreen}
       options={{ title: 'Payment' }}
     />
+    <Stack.Screen
+  name="Referral"
+  component={CustomerReferralScreen}
+  options={{ title: 'Referral & Earn' }}
+/>
   </Stack.Navigator>
 );
 
