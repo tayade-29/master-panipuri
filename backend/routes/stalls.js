@@ -103,6 +103,8 @@ router.get('/mine', auth, requireVendor, async (req, res) => {
  *   name (required)
  *   description, address, pricePerPlate, tags[], isOpen, lat, lng
  */
+
+// backend/routes/stalls.js
 router.post('/mine', auth, requireVendor, async (req, res) => {
   try {
     const {
@@ -114,6 +116,8 @@ router.post('/mine', auth, requireVendor, async (req, res) => {
       isOpen,
       lat,
       lng,
+      upiId,        // ✅ add
+      qrImageUrl,   // ✅ add
     } = req.body;
 
     if (!name) {
@@ -126,7 +130,10 @@ router.post('/mine', auth, requireVendor, async (req, res) => {
       address: address || '',
       pricePerPlate: pricePerPlate || 0,
       tags: Array.isArray(tags) ? tags : [],
+      upiId: upiId || '',
+      qrImageUrl: qrImageUrl || '',
     };
+    // ...rest of your logic unchanged
 
     if (typeof isOpen === 'boolean') {
       updateData.isOpen = isOpen;

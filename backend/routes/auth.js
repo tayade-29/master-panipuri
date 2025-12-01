@@ -24,15 +24,17 @@ const signToken = (user) => {
 // @access  Public
 router.post('/register', async (req, res) => {
   try {
-    const { fullName, email, phone, password, role } = req.body;
+    const { fullName, email, phone, password, role, referralCode } = req.body;
+
 
     if (!fullName || !email || !phone || !password || !role) {
       return res.status(400).json({ message: 'All fields are required' });
     }
 
-    if (!['customer', 'vendor'].includes(role)) {
-      return res.status(400).json({ message: 'Invalid role' });
-    }
+   if (!['customer', 'vendor', 'admin'].includes(role)) {
+  return res.status(400).json({ message: 'Invalid role' });
+}
+
 
     const existingEmail = await User.findOne({ email });
     if (existingEmail) {
@@ -55,6 +57,14 @@ router.post('/register', async (req, res) => {
       role,
       vendorStatus: role === 'vendor' ? 'PENDING' : null,
     });
+
+    if (referralCode) {
+  const referrer = await User.findOne({ referralCode: referralCode.toUpperCase() });
+  if (referrer) {
+    user.referredBy = referrer._id;
+    await user.save();
+  }
+}
 
     const token = signToken(user);
 

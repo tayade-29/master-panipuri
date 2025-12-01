@@ -17,6 +17,8 @@ import { apiRequest } from '../../api/client';
 const VendorProfileScreen = () => {
   const { user, logout, token } = useContext(AuthContext);
 
+  const [upiId, setUpiId] = useState('');
+
   const [stallLoading, setStallLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [stall, setStall] = useState(null);
@@ -30,6 +32,7 @@ const VendorProfileScreen = () => {
   const [currentLatLng, setCurrentLatLng] = useState(null);
 
   const loadMyStall = async () => {
+    
     try {
       setError('');
       setStallLoading(true);
@@ -37,19 +40,19 @@ const VendorProfileScreen = () => {
       const s = res.stall;
       setStall(s);
 
-      if (s) {
-        setName(s.name || '');
-        setDescription(s.description || '');
-        setAddress(s.address || '');
-        setPricePerPlate(
-          s.pricePerPlate ? String(s.pricePerPlate) : ''
-        );
-        setTagsText(s.tags && s.tags.length ? s.tags.join(', ') : '');
-        if (s.location && s.location.coordinates) {
-          const [lng, lat] = s.location.coordinates;
-          setCurrentLatLng({ lat, lng });
-        }
-      }
+     if (s) {
+  setName(s.name || '');
+  setDescription(s.description || '');
+  setAddress(s.address || '');
+  setPricePerPlate(s.pricePerPlate ? String(s.pricePerPlate) : '');
+  setTagsText(s.tags && s.tags.length ? s.tags.join(', ') : '');
+  setUpiId(s.upiId || ''); // Load UPI ID
+
+  if (s.location && s.location.coordinates) {
+    const [lng, lat] = s.location.coordinates;
+    setCurrentLatLng({ lat, lng });
+  }
+}
     } catch (err) {
       setError(err.message || 'Failed to load stall');
     } finally {
@@ -103,18 +106,19 @@ const VendorProfileScreen = () => {
           .map((t) => t.trim())
           .filter((t) => t.length > 0) || [];
 
-      const body = {
-        name: name.trim(),
-        description: description.trim(),
-        address: address.trim(),
-        pricePerPlate: Number(pricePerPlate) || 0,
-        tags,
-      };
+     const body = {
+  name: name.trim(),
+  description: description.trim(),
+  address: address.trim(),
+  pricePerPlate: Number(pricePerPlate) || 0,
+  tags,
+  upiId: upiId.trim(), // Send UPI ID
+};
 
-      if (currentLatLng) {
-        body.lat = currentLatLng.lat;
-        body.lng = currentLatLng.lng;
-      }
+if (currentLatLng) {
+  body.lat = currentLatLng.lat;
+  body.lng = currentLatLng.lng;
+}
 
       const res = await apiRequest('/api/stalls/mine', 'POST', body, token);
       setStall(res.stall);
@@ -157,83 +161,108 @@ const VendorProfileScreen = () => {
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Stall Name *</Text>
-        <TextInput
-          style={styles.input}
-          value={name}
-          onChangeText={setName}
-          placeholder="e.g. Sharma Ji Panipuri"
-          placeholderTextColor="#999"
-        />
+      // Inside VendorProfileScreen.js – replace the stall form card content
 
-        <Text style={styles.label}>Description</Text>
-        <TextInput
-          style={[styles.input, { height: 70 }]}
-          value={description}
-          onChangeText={setDescription}
-          placeholder="Crispy & spicy panipuri..."
-          placeholderTextColor="#999"
-          multiline
-        />
+<View style={styles.card}>
+  <Text style={styles.label}>Stall Name *</Text>
+  <TextInput
+    style={styles.input}
+    value={name}
+    onChangeText={setName}
+    placeholder="e.g. Sharma Ji Panipuri"
+    placeholderTextColor="#999"
+  />
 
-        <Text style={styles.label}>Address</Text>
-        <TextInput
-          style={styles.input}
-          value={address}
-          onChangeText={setAddress}
-          placeholder="Near City Mall, Main Road..."
-          placeholderTextColor="#999"
-        />
+  <Text style={styles.label}>Description</Text>
+  <TextInput
+    style={[styles.input, { height: 70 }]}
+    value={description}
+    onChangeText={setDescription}
+    placeholder="Crispy & spicy panipuri..."
+    placeholderTextColor="#999"
+    multiline
+  />
 
-        <Text style={styles.label}>Price Per Plate (₹)</Text>
-        <TextInput
-          style={styles.input}
-          value={pricePerPlate}
-          onChangeText={setPricePerPlate}
-          placeholder="30"
-          placeholderTextColor="#999"
-          keyboardType="numeric"
-        />
+  <Text style={styles.label}>Address</Text>
+  <TextInput
+    style={styles.input}
+    value={address}
+    onChangeText={setAddress}
+    placeholder="Near City Mall, Main Road..."
+    placeholderTextColor="#999"
+  />
 
-        <Text style={styles.label}>Tags (comma separated)</Text>
-        <TextInput
-          style={styles.input}
-          value={tagsText}
-          onChangeText={setTagsText}
-          placeholder="Spicy, Crispy, Sweet"
-          placeholderTextColor="#999"
-        />
+  <Text style={styles.label}>Price Per Plate (₹)</Text>
+  <TextInput
+    style={styles.input}
+    value={pricePerPlate}
+    onChangeText={setPricePerPlate}
+    placeholder="30"
+    placeholderTextColor="#999"
+    keyboardType="numeric"
+  />
 
-        <Text style={styles.label}>Location</Text>
-        {currentLatLng ? (
-          <Text style={styles.value}>
-            Lat: {currentLatLng.lat.toFixed(5)}, Lng:{' '}
-            {currentLatLng.lng.toFixed(5)}
-          </Text>
-        ) : (
-          <Text style={styles.value}>No location set yet.</Text>
-        )}
+  <Text style={styles.label}>Tags (comma separated)</Text>
+  <TextInput
+    style={styles.input}
+    value={tagsText}
+    onChangeText={setTagsText}
+    placeholder="Spicy, Crispy, Sweet"
+    placeholderTextColor="#999"
+  />
 
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          onPress={handleUseMyLocation}
-        >
-          <Text style={styles.secondaryButtonText}>Use My Current Location</Text>
-        </TouchableOpacity>
+  {/* NEW: UPI ID Field */}
+  <Text style={styles.label}>Your UPI ID (for PhonePe/Google Pay)</Text>
+  <TextInput
+    style={styles.input}
+    value={upiId}
+    onChangeText={setUpiId}
+    placeholder="yourname@oksbi or 123456@ybl"
+    placeholderTextColor="#999"
+    autoCapitalize="none"
+    keyboardType="email-address"
+  />
+  {upiId ? (
+    <Text style={{ color: 'green', fontSize: 12, marginTop: 4 }}>
+      UPI ID saved – customers can now pay online!
+    </Text>
+  ) : (
+    <Text style={{ color: '#d9534f', fontSize: 12, marginTop: 4 }}>
+      Add UPI ID to accept online payments
+    </Text>
+  )}
 
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleSaveStall}
-          disabled={saving}
-        >
-          {saving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Save Stall</Text>
-          )}
-        </TouchableOpacity>
-      </View>
+  {/* Optional: QR Image Upload Later */}
+  {/* <Text style={styles.label}>OR Upload QR Code (coming soon)</Text> */}
+
+  <Text style={styles.label}>Location</Text>
+  {currentLatLng ? (
+    <Text style={styles.value}>
+      Lat: {currentLatLng.lat.toFixed(5)}, Lng: {currentLatLng.lng.toFixed(5)}
+    </Text>
+  ) : (
+    <Text style={styles.value}>No location set yet.</Text>
+  )}
+
+  <TouchableOpacity
+    style={styles.secondaryButton}
+    onPress={handleUseMyLocation}
+  >
+    <Text style={styles.secondaryButtonText}>Use My Current Location</Text>
+  </TouchableOpacity>
+
+  <TouchableOpacity
+    style={styles.button}
+    onPress={handleSaveStall}
+    disabled={saving}
+  >
+    {saving ? (
+      <ActivityIndicator color="#fff" />
+    ) : (
+      <Text style={styles.buttonText}>Save Stall</Text>
+    )}
+  </TouchableOpacity>
+</View>
 
       <TouchableOpacity style={styles.logoutButton} onPress={logout}>
         <Text style={styles.logoutText}>Logout</Text>

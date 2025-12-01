@@ -11,7 +11,11 @@ const app = express();
 connectDB();
 
 // Middleware
-app.use(cors()); // For dev: allow all origins
+app.use(
+  cors({
+    origin: '*', // dev only; later you can restrict
+  })
+);
 app.use(express.json());
 
 // Routes
@@ -22,6 +26,12 @@ app.get('/', (req, res) => {
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/stalls', require('./routes/stalls'));
 app.use('/api/payments', require('./routes/payments'));
+app.use('/api/loyalty', require('./routes/loyalty')); // 👈 add this
+app.use('/api/offers', require('./routes/offers'));
+app.use('/api/referrals', require('./routes/referrals'));
+app.use('/api/admin', require('./routes/admin'));
+
+
 
 
 const PORT = process.env.PORT || 5000;

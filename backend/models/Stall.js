@@ -55,6 +55,12 @@ const StallSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+     upiId: {
+    type: String, // e.g. "vendor@upi"
+  },
+  qrImageUrl: {
+    type: String, // uploaded image URL of the scanner
+  },
   },
   { timestamps: true }
 );

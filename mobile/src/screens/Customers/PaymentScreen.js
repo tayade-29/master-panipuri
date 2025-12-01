@@ -7,12 +7,15 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Linking,              // ✅ add this
 } from 'react-native';
+
 import { AuthContext } from '../../context/AuthContext';
 import { apiRequest } from '../../api/client';
 
 const PaymentScreen = ({ route, navigation }) => {
   const { user, token } = useContext(AuthContext);
+  
   const { stall } = route.params; // passed from VendorsScreen
 
   const [plateCount, setPlateCount] = useState('1');
@@ -22,56 +25,149 @@ const PaymentScreen = ({ route, navigation }) => {
   const [method, setMethod] = useState('UPI');
   const [loading, setLoading] = useState(false);
 
+const openUpiApp = async () => {
+  if (!stall.upiId || stall.upiId.trim() === '') {
+    Alert.alert(
+      'Online Payment Not Available',
+      'This vendor has not added their UPI ID yet. Please pay in cash or ask them to set it up in their profile.'
+    );
+    return false;
+  }
+
+  if (!totalAmount || totalAmount <= 0) {
+    Alert.alert('Error', 'Total amount must be greater than 0');
+    return false;
+  }
+
+  const upiUrl = `upi://pay?pa=${encodeURIComponent(
+    stall.upiId
+  )}&pn=${encodeURIComponent(
+    stall.name || 'Panipuri Stall'
+  )}&am=${totalAmount}&cu=INR&tn=${encodeURIComponent('Panipuri payment')}`;
+
+  try {
+    const supported = await Linking.canOpenURL(upiUrl);
+    if (!supported) {
+      Alert.alert(
+        'No UPI App Found',
+        'Please install PhonePe, Google Pay, or any UPI app.'
+      );
+      return false;
+    }
+
+    await Linking.openURL(upiUrl);
+    return true;
+  } catch (err) {
+    Alert.alert('Error', 'Unable to open payment app');
+    return false;
+  }
+};
+
+
   const totalAmount =
     (Number(plateCount) || 0) * (Number(pricePerPlate) || 0);
 
-  const handlePay = async () => {
-    const plates = Number(plateCount);
-    const price = Number(pricePerPlate);
+const handlePayOnline = async () => {
+  const plates = Number(plateCount);
+  const price = Number(pricePerPlate);
 
-    if (!plates || plates <= 0) {
-      Alert.alert('Validation', 'Please enter valid number of plates');
-      return;
+  if (!plates || plates <= 0) {
+    Alert.alert('Validation', 'Please enter valid number of plates');
+    return;
+  }
+  if (!price || price <= 0) {
+    Alert.alert('Validation', 'Please enter valid price per plate');
+    return;
+  }
+
+  const upiOpened = await openUpiApp();
+  if (!upiOpened) return;
+
+  try {
+    setLoading(true);
+
+    const body = {
+      stallId: stall._id,
+      vendorId: stall.vendor._id,
+      plateCount: plates,
+      pricePerPlate: price,
+      method: 'ONLINE',  // ✅
+    };
+
+    const res = await apiRequest('/api/payments', 'POST', body, token);
+
+    const free = res.loyalty.freePlatesEarnedThisPayment;
+    const remaining = res.loyalty.platesNeededForNextFree;
+
+    let msg = `Payment recorded: ₹${res.payment.amount}`;
+    if (free > 0) {
+      msg += `\n🎉 You earned ${free} free plate(s)!`;
     }
-    if (!price || price <= 0) {
-      Alert.alert('Validation', 'Please enter valid price per plate');
-      return;
+    msg += `\nYou now need ${remaining} plate(s) for the next free plate.`;
+
+    Alert.alert('Success', msg, [
+      {
+        text: 'OK',
+        onPress: () => navigation.goBack(),
+      },
+    ]);
+  } catch (err) {
+    Alert.alert('Error', err.message || 'Payment failed');
+  } finally {
+    setLoading(false);
+  }
+};
+
+const handlePayCash = async () => {
+  const plates = Number(plateCount);
+  const price = Number(pricePerPlate);
+
+  if (!plates || plates <= 0) {
+    Alert.alert('Validation', 'Please enter valid number of plates');
+    return;
+  }
+  if (!price || price <= 0) {
+    Alert.alert('Validation', 'Please enter valid price per plate');
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    const body = {
+      stallId: stall._id,
+      vendorId: stall.vendor._id,
+      plateCount: plates,
+      pricePerPlate: price,
+      method: 'CASH', // ✅ will become PENDING_VENDOR on backend
+    };
+
+    const res = await apiRequest('/api/payments', 'POST', body, token);
+
+    const free = res.loyalty.freePlatesEarnedThisPayment;
+    const remaining = res.loyalty.platesNeededForNextFree;
+
+    let msg =
+      `Cash payment created for ₹${res.payment.amount}.\n` +
+      `Vendor must confirm they received cash.\n\n`;
+    if (free > 0) {
+      msg += `🎉 You earned ${free} free plate(s)!\n`;
     }
+    msg += `You now need ${remaining} plate(s) for the next free plate.`;
 
-    try {
-      setLoading(true);
+    Alert.alert('Pending Vendor Confirmation', msg, [
+      {
+        text: 'OK',
+        onPress: () => navigation.goBack(),
+      },
+    ]);
+  } catch (err) {
+    Alert.alert('Error', err.message || 'Payment failed');
+  } finally {
+    setLoading(false);
+  }
+};
 
-      const body = {
-        stallId: stall._id,
-        vendorId: stall.vendor._id,
-        plateCount: plates,
-        pricePerPlate: price,
-        method,
-      };
-
-      const res = await apiRequest('/api/payments', 'POST', body, token);
-
-      const free = res.loyalty.freePlatesEarnedThisPayment;
-      const remaining = res.loyalty.platesNeededForNextFree;
-
-      let msg = `Payment recorded: ₹${res.payment.amount}`;
-      if (free > 0) {
-        msg += `\n🎉 You earned ${free} free plate(s)!`;
-      }
-      msg += `\nYou now need ${remaining} plate(s) for the next free plate.`;
-
-      Alert.alert('Success', msg, [
-        {
-          text: 'OK',
-          onPress: () => navigation.goBack(),
-        },
-      ]);
-    } catch (err) {
-      Alert.alert('Error', err.message || 'Payment failed');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <View style={styles.container}>
@@ -108,43 +204,54 @@ const PaymentScreen = ({ route, navigation }) => {
         />
 
         <Text style={styles.label}>Payment Method</Text>
-        <View style={styles.methodRow}>
-          {['UPI', 'QR', 'CARD', 'CASH'].map((m) => (
-            <TouchableOpacity
-              key={m}
-              style={[
-                styles.methodButton,
-                method === m && styles.methodButtonActive,
-              ]}
-              onPress={() => setMethod(m)}
-            >
-              <Text
-                style={[
-                  styles.methodText,
-                  method === m && styles.methodTextActive,
-                ]}
-              >
-                {m}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+      <View style={styles.methodRow}>
+  {['ONLINE', 'CASH'].map((m) => (
+    <TouchableOpacity
+      key={m}
+      style={[
+        styles.methodButton,
+        method === m && styles.methodButtonActive,
+      ]}
+      onPress={() => setMethod(m)}
+    >
+      <Text
+        style={[
+          styles.methodText,
+          method === m && styles.methodTextActive,
+        ]}
+      >
+        {m === 'ONLINE' ? 'Online (PhonePe)' : 'Cash at Stall'}
+      </Text>
+    </TouchableOpacity>
+  ))}
+</View>
+
 
         <Text style={styles.totalText}>
           Total: <Text style={styles.totalAmount}>₹{totalAmount || 0}</Text>
         </Text>
+<TouchableOpacity
+  style={[
+    styles.payButton,
+    method === 'ONLINE' && !stall.upiId && { backgroundColor: '#ccc' }
+  ]}
+  onPress={method === 'ONLINE' ? handlePayOnline : handlePayCash}
+  disabled={loading || (method === 'ONLINE' && !stall.upiId)}
+>
+  {loading ? (
+    <ActivityIndicator color="#fff" />
+  ) : (
+    <Text style={styles.payButtonText}>
+  {method === 'ONLINE'
+    ? stall.upiId
+      ? 'Pay Online with PhonePe/Google Pay'
+      : 'Online Payment Not Available'
+    : 'Create Cash Payment'}
+</Text>
+  )}
+</TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.payButton}
-          onPress={handlePay}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.payButtonText}>Confirm Payment</Text>
-          )}
-        </TouchableOpacity>
+        
       </View>
     </View>
   );

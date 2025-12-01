@@ -1,5 +1,7 @@
-const API_BASE_URL = 'http://10.181.173.137:5000'; 
+const API_BASE_URL = 'http://10.214.234.137:5000'; 
 // For Android emulator; for web / iOS simulator you can change to http://localhost:5000
+
+
 
 export const apiRequest = async (path, method = 'GET', body, token) => {
   const headers = {

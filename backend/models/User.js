@@ -33,8 +33,30 @@ const UserSchema = new mongoose.Schema(
       enum: ['PENDING', 'APPROVED', 'REJECTED', null],
       default: null,
     },
+      referralCode: {
+    type: String,
+    unique: true,
+    sparse: true,
+  },
+  referredBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
+  },
+
   },
   { timestamps: true }
+  
 );
+UserSchema.pre('save', function (next) {
+  if (!this.isNew || this.referralCode) {
+    return next();
+  }
+  // Simple code: PAN + last 6 chars of _id
+  this.referralCode = (
+    'PAN' + this._id.toString().slice(-6)
+  ).toUpperCase();
+  next();
+});
 
 module.exports = mongoose.model('User', UserSchema);
