@@ -7,20 +7,20 @@ import {
   ActivityIndicator,
   ScrollView,
   TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
 import { apiRequest } from '../../api/client';
 
 const formatDate = (isoStr) => {
-  if (!isoStr) return 'No visits yet';
+  if (!isoStr) return 'Never';
   const d = new Date(isoStr);
-  if (Number.isNaN(d.getTime())) return 'No visits yet';
-  return d.toLocaleDateString();
+  return isNaN(d.getTime()) ? 'Never' : d.toLocaleDateString('en-IN');
 };
 
 const CustomerHomeScreen = ({ navigation }) => {
   const { user, token } = useContext(AuthContext);
-
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState('');
@@ -32,7 +32,7 @@ const CustomerHomeScreen = ({ navigation }) => {
       const res = await apiRequest('/api/loyalty/summary', 'GET', null, token);
       setSummary(res);
     } catch (err) {
-      setError(err.message || 'Failed to load loyalty summary');
+      setError(err.message || 'Failed to load your stats');
     } finally {
       setLoading(false);
     }
@@ -45,8 +45,8 @@ const CustomerHomeScreen = ({ navigation }) => {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" />
-        <Text style={{ marginTop: 8 }}>Loading your stats...</Text>
+        <ActivityIndicator size="large" color="#ff8a00" />
+        <Text style={styles.loadingText}>Loading your Panipuri journey...</Text>
       </View>
     );
   }
@@ -56,134 +56,149 @@ const CustomerHomeScreen = ({ navigation }) => {
   const totalAmountSpent = summary?.totalAmountSpent || 0;
   const vendorStats = summary?.vendorStats || [];
 
-  // Sort by totalPlatesWithVendor and take top 3
   const mostVisited = [...vendorStats]
     .sort((a, b) => b.totalPlatesWithVendor - a.totalPlatesWithVendor)
-    .slice(0, 3);
+    .slice(0, 5); // Show top 5
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 24 }}>
-      <Text style={styles.greeting}>Hi, {user?.fullName || 'Foodie'}</Text>
-      <Text style={styles.subtitle}>Your Panipuri Journey</Text>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.greeting}>Hi, {user?.fullName || 'Foodie'}!</Text>
+        <Text style={styles.subtitle}>Your Panipuri Loyalty Dashboard</Text>
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-      {/* Quick Stats */}
-      <View style={styles.row}>
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>Plates Eaten</Text>
-          <Text style={styles.cardValue}>{totalPlates}</Text>
-        </View>
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>Free Plates</Text>
-          <Text style={styles.cardValue}>{totalFreePlates}</Text>
-        </View>
-      </View>
-
-      <View style={styles.row}>
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>Total Spent</Text>
-          <Text style={styles.cardValue}>₹{totalAmountSpent}</Text>
-        </View>
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>Stalls Visited</Text>
-          <Text style={styles.cardValue}>{vendorStats.length}</Text>
-        </View>
-      </View>
-
-      {/* Today’s Special */}
-      <View style={styles.specialCard}>
-        <Text style={styles.specialTitle}>Today's Special</Text>
-        <Text style={styles.specialText}>
-          Eat 5 plates at any stall → Get 1 FREE!
-        </Text>
-        <TouchableOpacity
-          style={styles.specialButton}
-          onPress={() => navigation.navigate('Vendors')}
-        >
-          <Text style={styles.specialButtonText}>Find Panipuri Near Me</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Most Visited Stalls */}
-      <Text style={styles.sectionTitle}>Your Most Visited Stalls</Text>
-
-      {mostVisited.length === 0 ? (
-        <Text style={styles.smallText}>
-          You haven't visited any stall yet. Start eating!
-        </Text>
-      ) : (
-        mostVisited.map((v, index) => (
-          <View key={v.vendorId} style={styles.loyaltyCard}>
-            <View style={styles.rankHeader}>
-              <Text style={styles.rank}>#{index + 1}</Text>
-              <Text style={styles.vendorName}>{v.vendorName}</Text>
-            </View>
-            <Text style={styles.loyaltyLine}>
-              {v.currentPlateCount}/5 plates (Need {v.platesNeededForNextFree} more)
-            </Text>
-            <Text style={styles.loyaltySmall}>
-              Total plates: {v.totalPlatesWithVendor} | Free earned: {v.totalFreePlatesWithVendor}
-            </Text>
-            <Text style={styles.loyaltySmall}>
-              Last visit: {formatDate(v.lastVisitedAt)}
-            </Text>
+        {/* Stats Grid */}
+        <View style={styles.statsGrid}>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Plates Eaten</Text>
+            <Text style={styles.statValue}>{totalPlates}</Text>
           </View>
-        ))
-      )}
-    </ScrollView>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Free Plates Earned</Text>
+            <Text style={styles.statValue}>{totalFreePlates}</Text>
+          </View>
+        </View>
+
+        <View style={styles.statsGrid}>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Total Spent</Text>
+            <Text style={styles.statValue}>₹{totalAmountSpent}</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Stalls Visited</Text>
+            <Text style={styles.statValue}>{vendorStats.length}</Text>
+          </View>
+        </View>
+
+        {/* Today’s Offer */}
+        <View style={styles.offerCard}>
+          <Text style={styles.offerTitle}>Today’s Loyalty Deal</Text>
+          <Text style={styles.offerText}>
+            Buy 5 plates at any stall → Get 1 FREE next time!
+          </Text>
+          <TouchableOpacity
+            style={styles.findButton}
+            onPress={() => navigation.navigate('Vendors')}
+          >
+            <Text style={styles.findButtonText}>Find Panipuri Near Me</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Top Stalls */}
+        <Text style={styles.sectionTitle}>Your Favorite Stalls</Text>
+        {mostVisited.length === 0 ? (
+          <Text style={styles.noData}>You haven't eaten anywhere yet. Time to start!</Text>
+        ) : (
+          mostVisited.map((v, i) => (
+            <View key={v.vendorId} style={styles.stallCard}>
+              <View style={styles.rankRow}>
+                <Text style={styles.rank}>#{i + 1}</Text>
+                <Text style={styles.stallName}>{v.vendorName}</Text>
+              </View>
+              <Text style={styles.progress}>
+                {v.currentPlateCount}/5 plates • {v.platesNeededForNextFree} more for FREE!
+              </Text>
+              <Text style={styles.details}>
+                Total: {v.totalPlatesWithVendor} plates • Free earned: {v.totalFreePlatesWithVendor}
+              </Text>
+              <Text style={styles.lastVisit}>Last visit: {formatDate(v.lastVisitedAt)}</Text>
+            </View>
+          ))
+        )}
+
+        <View style={{ height: 100 }} />
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff7e6', padding: 16, paddingTop: 40 },
-  center: { flex: 1, backgroundColor: '#fff7e6', justifyContent: 'center', alignItems: 'center' },
-  greeting: { fontSize: 22, fontWeight: '800', color: '#ff8a00' },
-  subtitle: { fontSize: 14, color: '#555', marginBottom: 16 },
-  error: { color: 'red', marginBottom: 8 },
-  row: { flexDirection: 'row', gap: 12, marginBottom: 8 },
-  card: {
+  scrollContent: {
+    flexGrow: 1,
+    backgroundColor: '#fff7e6',
+    padding: 16,
+    paddingTop: 40,
+    paddingBottom: 60,
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff7e6',
+  },
+  loadingText: { marginTop: 12, fontSize: 16, color: '#ff8a00' },
+  greeting: { fontSize: 28, fontWeight: '800', color: '#ff8a00' },
+  subtitle: { fontSize: 15, color: '#666', marginBottom: 16 },
+  errorText: { color: '#d32f2f', textAlign: 'center', marginBottom: 10 },
+  statsGrid: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  statCard: {
     flex: 1,
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#ffd9a3',
-  },
-  cardLabel: { fontSize: 12, color: '#777' },
-  cardValue: { fontSize: 20, fontWeight: '700', color: '#333', marginTop: 4 },
-  specialCard: {
-    backgroundColor: '#ffe2b8',
-    borderRadius: 16,
     padding: 16,
-    marginVertical: 12,
-  },
-  specialTitle: { fontSize: 16, fontWeight: '700', color: '#ff8a00' },
-  specialText: { fontSize: 13, color: '#444', marginVertical: 6 },
-  specialButton: {
-    marginTop: 8,
-    backgroundColor: '#ff8a00',
-    borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    alignSelf: 'flex-start',
-  },
-  specialButtonText: { color: '#fff', fontWeight: '600', fontSize: 13 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#ff8a00', marginTop: 8, marginBottom: 6 },
-  smallText: { fontSize: 12, color: '#777' },
-  loyaltyCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
+    borderRadius: 16,
+    borderWidth: 1.5,
     borderColor: '#ffd9a3',
-    marginBottom: 8,
+    alignItems: 'center',
   },
-  rankHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  rank: { fontSize: 18, fontWeight: '800', color: '#ff8a00', marginRight: 8 },
-  vendorName: { fontSize: 15, fontWeight: '700', color: '#333' },
-  loyaltyLine: { fontSize: 13, color: '#555' },
-  loyaltySmall: { fontSize: 11, color: '#777', marginTop: 2 },
+  statLabel: { fontSize: 13, color: '#777' },
+  statValue: { fontSize: 24, fontWeight: '800', color: '#333', marginTop: 6 },
+  offerCard: {
+    backgroundColor: '#ffe2b8',
+    padding: 20,
+    borderRadius: 20,
+    marginVertical: 20,
+    alignItems: 'center',
+  },
+  offerTitle: { fontSize: 18, fontWeight: '700', color: '#ff6f00' },
+  offerText: { fontSize: 14, color: '#444', marginVertical: 8, textAlign: 'center' },
+  findButton: {
+    marginTop: 10,
+    backgroundColor: '#ff8a00',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 30,
+  },
+  findButtonText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#ff8a00', marginTop: 10 },
+  noData: { fontSize: 14, color: '#777', textAlign: 'center', marginVertical: 20 },
+  stallCard: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#ffd9a3',
+    marginBottom: 12,
+  },
+  rankRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  rank: { fontSize: 22, fontWeight: '800', color: '#ff8a00', marginRight: 10 },
+  stallName: { fontSize: 17, fontWeight: '700', color: '#333' },
+  progress: { fontSize: 15, color: '#ff6f00', fontWeight: '600', marginTop: 4 },
+  details: { fontSize: 13, color: '#555', marginTop: 4 },
+  lastVisit: { fontSize: 12, color: '#888', marginTop: 6 },
 });
 
 export default CustomerHomeScreen;
