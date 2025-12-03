@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
 // CHANGE THIS ONLY IF YOUR BACKEND IS NOT ON localhost
-const API_BASE_URL = 'http://10.233.215.137:5000';
+const API_BASE_URL = 'https://panipuriapp.onrender.com/';
 // e.g. const API_BASE_URL = 'http://10.129.217.137:5000';
 
 async function apiRequest(path, method = 'GET', body, token) {
