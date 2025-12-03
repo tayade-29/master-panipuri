@@ -21,10 +21,14 @@ const CustomerOffersScreen = () => {
   const fetchOffers = async () => {
     try {
       setError('');
-      // 👇 IMPORTANT: /api/offers, not /offers
       const data = await apiRequest('/api/offers', 'GET');
-
-      setOffers(data.offers || []);
+      const now = new Date();
+      const activeOffers = (data.offers || []).filter(offer => {
+        const from = offer.validFrom ? new Date(offer.validFrom) : new Date(0);
+        const to = offer.validTo ? new Date(offer.validTo) : new Date('2100-01-01');
+        return from <= now && now <= to;
+      });
+      setOffers(activeOffers);
     } catch (err) {
       console.log('Offers fetch error:', err.message);
       setError(err.message || 'Failed to load offers');
@@ -51,7 +55,7 @@ const CustomerOffersScreen = () => {
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <View style={styles.titleRow}>
-            <MaterialIcons name="local-offer" size={20} color="#ff8a00" />
+            <MaterialIcons name="local-offer" size={20} color="#556B2F" />
             <Text style={styles.titleText}>{item.title}</Text>
           </View>
           <View style={styles.codeBadge}>
@@ -100,8 +104,8 @@ const CustomerOffersScreen = () => {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#ff8a00" />
-        <Text style={{ marginTop: 8, color: '#555' }}>Loading offers...</Text>
+        <ActivityIndicator size="large" color="#556B2F" />
+        <Text style={{ marginTop: 8, color: '#696969' }}>Loading offers...</Text>
       </View>
     );
   }
@@ -120,11 +124,11 @@ const CustomerOffersScreen = () => {
   if (!offers.length) {
     return (
       <View style={styles.center}>
-        <MaterialIcons name="card-giftcard" size={40} color="#ffb84d" />
+        <MaterialIcons name="card-giftcard" size={40} color="#EEE8AA" />
         <Text style={{ marginTop: 12, fontSize: 16, fontWeight: '600' }}>
           No offers right now
         </Text>
-        <Text style={{ marginTop: 4, color: '#777', textAlign: 'center' }}>
+        <Text style={{ marginTop: 4, color: '#808080', textAlign: 'center' }}>
           Check back later for new deals on your favourite panipuri stalls.
         </Text>
       </View>
@@ -149,11 +153,11 @@ const CustomerOffersScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff7e6',
+    backgroundColor: '#FFF5EE',
   },
   center: {
     flex: 1,
-    backgroundColor: '#fff7e6',
+    backgroundColor: '#FFF5EE',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
@@ -163,12 +167,12 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: '#FFF8DC',
     borderRadius: 16,
     padding: 14,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#ffd9a3',
+    borderColor: '#FAEBD7',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -185,23 +189,23 @@ const styles = StyleSheet.create({
   titleText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#696969',
   },
   codeBadge: {
-    backgroundColor: '#ff8a00',
+    backgroundColor: '#EEE8AA',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 999,
   },
   codeText: {
-    color: '#fff',
+    color: '#556B2F',
     fontWeight: '700',
     fontSize: 12,
   },
   descriptionText: {
     marginTop: 8,
     fontSize: 13,
-    color: '#555',
+    color: '#808080',
   },
   infoRow: {
     flexDirection: 'row',
@@ -213,30 +217,30 @@ const styles = StyleSheet.create({
     marginRight: 6,
     padding: 6,
     borderRadius: 10,
-    backgroundColor: '#fff9ee',
+    backgroundColor: '#FAFAD2',
   },
   infoLabel: {
     fontSize: 11,
-    color: '#777',
+    color: '#A9A9A9',
   },
   infoValue: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#333',
+    color: '#696969',
   },
   validRow: {
     marginTop: 8,
   },
   validText: {
     fontSize: 12,
-    color: '#777',
+    color: '#A9A9A9',
   },
   footerRow: {
     marginTop: 6,
   },
   footerHint: {
     fontSize: 11,
-    color: '#999',
+    color: '#A9A9A9',
   },
   errorText: {
     color: '#c0392b',
@@ -245,7 +249,7 @@ const styles = StyleSheet.create({
   },
   retryText: {
     marginTop: 6,
-    color: '#ff8a00',
+    color: '#556B2F',
     fontWeight: '600',
   },
 });
