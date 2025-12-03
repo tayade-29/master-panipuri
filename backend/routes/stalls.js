@@ -29,7 +29,32 @@ const requireVendor = async (req, res, next) => {
     return res.status(500).json({ message: 'Server error' });
   }
 };
+router.post('/request-edit', auth, requireVendor, async (req, res) => {
+  try {
+    const user = req.vendor;
+    const stall = await Stall.findOne({ vendor: user._id });
 
+    if (!stall) {
+      return res.status(400).json({ message: 'No stall to edit' });
+    }
+
+    if (user.editRequestStatus === 'PENDING') {
+      return res.status(400).json({ message: 'Edit request already pending' });
+    }
+
+    if (user.editRequestStatus === 'APPROVED') {
+      return res.status(400).json({ message: 'Edit already approved - proceed to edit' });
+    }
+
+    user.editRequestStatus = 'PENDING';
+    await user.save();
+
+    return res.json({ message: 'Edit request sent to admin for approval' });
+  } catch (err) {
+    console.error('Request edit error:', err.message);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
 /**
  * GET /api/stalls
  * Public - list of open stalls, optionally near lat/lng
@@ -116,8 +141,8 @@ router.post('/mine', auth, requireVendor, async (req, res) => {
       isOpen,
       lat,
       lng,
-      upiId,        // ✅ add
-      qrImageUrl,   // ✅ add
+      upiId,
+      qrImageUrl,
     } = req.body;
 
     if (!name) {
@@ -133,7 +158,6 @@ router.post('/mine', auth, requireVendor, async (req, res) => {
       upiId: upiId || '',
       qrImageUrl: qrImageUrl || '',
     };
-    // ...rest of your logic unchanged
 
     if (typeof isOpen === 'boolean') {
       updateData.isOpen = isOpen;
@@ -142,11 +166,19 @@ router.post('/mine', auth, requireVendor, async (req, res) => {
     if (typeof lat === 'number' && typeof lng === 'number') {
       updateData.location = {
         type: 'Point',
-        coordinates: [lng, lat], // IMPORTANT: [lng, lat]
+        coordinates: [lng, lat], // [lng, lat]
       };
     }
 
     let stall = await Stall.findOne({ vendor: req.vendor._id });
+    const isEdit = !!stall;
+
+    // For edits, check approval
+    if (isEdit && req.vendor.editRequestStatus !== 'APPROVED') {
+      return res.status(403).json({
+        message: 'Edit permission required. Please request approval from admin first.',
+      });
+    }
 
     if (!stall) {
       stall = await Stall.create({
@@ -156,6 +188,12 @@ router.post('/mine', auth, requireVendor, async (req, res) => {
     } else {
       stall.set(updateData);
       await stall.save();
+    }
+
+    // If it was an edit, reset the permission after successful save
+    if (isEdit) {
+      req.vendor.editRequestStatus = 'NONE';
+      await req.vendor.save();
     }
 
     return res.json({ message: 'Stall saved successfully', stall });

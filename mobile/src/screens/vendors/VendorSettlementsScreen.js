@@ -1,3 +1,4 @@
+// VendorSettlementsScreen.js
 import React, { useContext, useEffect, useState } from 'react';
 import {
   View,
@@ -6,46 +7,28 @@ import {
   ActivityIndicator,
   FlatList,
   RefreshControl,
+  StatusBar,
 } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
 import { apiRequest } from '../../api/client';
 
-const formatDateTime = (isoStr) => {
-  const d = new Date(isoStr);
-  if (Number.isNaN(d.getTime())) return isoStr;
-  return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-  })}`;
-};
+const formatDate = (date) => new Date(date).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
 
 const VendorSettlementsScreen = () => {
   const { token } = useContext(AuthContext);
-
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [data, setData] = useState(null);
-  const [error, setError] = useState('');
 
-  const loadPayments = async (opts = { refresh: false }) => {
+  const loadData = async (isRefresh = false) => {
     try {
-      if (opts.refresh) setRefreshing(true);
-      else setLoading(true);
+      if (!isRefresh) setLoading(true);
+      setRefreshing(isRefresh);
 
-      setError('');
-
-      // For now, we use default last 7 days (no query params)
-      const res = await apiRequest(
-        '/api/payments/vendor/list',
-        'GET',
-        null,
-        token
-      );
-
+      const res = await apiRequest('/api/payments/vendor/list', 'GET', null, token);
       setData(res);
     } catch (err) {
-      setError(err.message || 'Failed to load settlements');
-      setData(null);
+      Alert.alert('Error', err.message);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -53,185 +36,65 @@ const VendorSettlementsScreen = () => {
   };
 
   useEffect(() => {
-    loadPayments();
+    loadData();
   }, []);
-
-  const onRefresh = () => {
-    loadPayments({ refresh: true });
-  };
-
-  const renderItem = ({ item }) => {
-    return (
-      <View style={styles.itemCard}>
-        <Text style={styles.itemStall}>
-          {item.stall?.name || 'Stall'}
-        </Text>
-        <Text style={styles.itemLine}>
-          <Text style={styles.itemLabel}>Customer: </Text>
-          {item.customer?.fullName || 'Customer'}
-        </Text>
-        <Text style={styles.itemLine}>
-          <Text style={styles.itemLabel}>Plates: </Text>
-          {item.plateCount} (Free: {item.freePlatesGiven})
-        </Text>
-        <Text style={styles.itemLine}>
-          <Text style={styles.itemLabel}>Amount: </Text>₹{item.amount}
-        </Text>
-        <Text style={styles.itemLine}>
-          <Text style={styles.itemLabel}>Method: </Text>
-          {item.method}
-        </Text>
-        <Text style={styles.itemDate}>{formatDateTime(item.createdAt)}</Text>
-      </View>
-    );
-  };
 
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" />
-        <Text style={{ marginTop: 8 }}>Loading settlements...</Text>
+        <ActivityIndicator size="large" color="#FF6B00" />
       </View>
     );
   }
 
-  if (error) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.error}>{error}</Text>
-      </View>
-    );
-  }
-
-  const totalAmount = data?.totalAmount || 0;
-  const totalPlates = data?.totalPlates || 0;
-  const totalFreePlates = data?.totalFreePlates || 0;
-  const count = data?.count || 0;
   const payments = data?.payments || [];
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Settlements (Last 7 Days)</Text>
+    <>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFCF7" />
+      <View style={styles.container}>
+        <Text style={styles.title}>Recent Sales</Text>
 
-      <View style={styles.summaryRow}>
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Total Amount</Text>
-          <Text style={styles.summaryValue}>₹{totalAmount}</Text>
+        <View style={styles.summary}>
+          <Text style={styles.summaryText}>₹{data?.totalAmount || 0} • {data?.count || 0} orders • {data?.totalPlates || 0} plates</Text>
         </View>
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Orders</Text>
-          <Text style={styles.summaryValue}>{count}</Text>
-        </View>
-      </View>
 
-      <View style={styles.summaryRow}>
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Plates Sold</Text>
-          <Text style={styles.summaryValue}>{totalPlates}</Text>
-        </View>
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Free Plates</Text>
-          <Text style={styles.summaryValue}>{totalFreePlates}</Text>
-        </View>
-      </View>
-
-      {payments.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.noData}>No payments in this period.</Text>
-        </View>
-      ) : (
         <FlatList
           data={payments}
           keyExtractor={(item) => item._id}
-          renderItem={renderItem}
-          style={{ marginTop: 8 }}
-          contentContainerStyle={{ paddingBottom: 20 }}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} />}
+          ListEmptyComponent={<Text style={styles.empty}>No sales yet</Text>}
+          renderItem={({ item }) => (
+            <View style={styles.item}>
+              <View style={styles.itemHeader}>
+                <Text style={styles.amount}>₹{item.amount}</Text>
+                <Text style={styles.method}>{item.method}</Text>
+              </View>
+              <Text style={styles.plates}>{item.plateCount} plates {item.freePlatesGiven > 0 && `(Free: ${item.freePlatesGiven})`}</Text>
+              <Text style={styles.customer}>{item.customer?.fullName || 'Walk-in'}</Text>
+              <Text style={styles.date}>{formatDate(item.createdAt)}</Text>
+            </View>
+          )}
         />
-      )}
-    </View>
+      </View>
+    </>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff7e6',
-    padding: 16,
-    paddingTop: 16,
-  },
-  center: {
-    flex: 1,
-    backgroundColor: '#fff7e6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#ff8a00',
-    marginBottom: 12,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 8,
-  },
-  summaryCard: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#ffd9a3',
-  },
-  summaryLabel: {
-    fontSize: 12,
-    color: '#777',
-  },
-  summaryValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#333',
-    marginTop: 3,
-  },
-  itemCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#ffd9a3',
-    marginBottom: 8,
-  },
-  itemStall: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#ff8a00',
-    marginBottom: 2,
-  },
-  itemLine: {
-    fontSize: 13,
-    color: '#555',
-  },
-  itemLabel: {
-    fontWeight: '600',
-  },
-  itemDate: {
-    fontSize: 11,
-    color: '#777',
-    marginTop: 4,
-  },
-  error: {
-    color: 'red',
-    textAlign: 'center',
-  },
-  noData: {
-    fontSize: 14,
-    color: '#444',
-  },
+  container: { flex: 1, backgroundColor: '#FFFCF7' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFCF7' },
+  title: { fontSize: 26, fontWeight: '800', color: '#222', textAlign: 'center', paddingTop: 50, paddingBottom: 10 },
+  summary: { paddingHorizontal: 20, paddingBottom: 16 },
+  summaryText: { fontSize: 16, fontWeight: '600', color: '#444', textAlign: 'center' },
+  item: { backgroundColor: '#FFF', marginHorizontal: 20, marginBottom: 12, padding: 16, borderRadius: 16, elevation: 3 },
+  itemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  amount: { fontSize: 20, fontWeight: '800', color: '#222' },
+  method: { fontSize: 13, color: '#FF6B00', fontWeight: '600', textTransform: 'uppercase' },
+  plates: { fontSize: 14, color: '#666', marginTop: 4 },
+  customer: { fontSize: 15, fontWeight: '600', color: '#222', marginTop: 6 },
+  date: { fontSize: 12, color: '#999', marginTop: 8 },
+  empty: { textAlign: 'center', padding: 40, fontSize: 16, color: '#999' },
 });
 
 export default VendorSettlementsScreen;

@@ -68,17 +68,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
   },
-  button: {
-    backgroundColor: '#ff8a00',
-    paddingVertical: 12,
-    borderRadius: 10,
+ button: {
+    marginHorizontal: 20,
+    backgroundColor: '#E53935',
+    padding: 16,
+    borderRadius: 12,
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 24,
+    marginTop: 30,
+    elevation: 4,
   },
-  buttonText: {
-    color: '#fff',
-    fontWeight: '600',
+buttonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
   referralBtn: {
   marginTop: 8,

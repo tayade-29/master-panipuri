@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
-// 👇 CHANGE THIS ONLY IF YOUR BACKEND IS NOT ON localhost
-const API_BASE_URL = 'http://10.214.234.137:5000';
+// CHANGE THIS ONLY IF YOUR BACKEND IS NOT ON localhost
+const API_BASE_URL = 'http://10.233.215.137:5000';
 // e.g. const API_BASE_URL = 'http://10.129.217.137:5000';
 
 async function apiRequest(path, method = 'GET', body, token) {
@@ -33,7 +33,28 @@ async function apiRequest(path, method = 'GET', body, token) {
   return data;
 }
 
-// Status badge helper
+const renderEditStatusBadge = (status) => {
+  if (status === 'APPROVED') {
+    return (
+      <span style={{ ...styles.statusBadge, ...styles.statusApproved }}>
+        ✓ Approved
+      </span>
+    );
+  }
+  if (status === 'PENDING') {
+    return (
+      <span style={{ ...styles.statusBadge, ...styles.statusPending }}>
+        ⏳ Pending
+      </span>
+    );
+  }
+  return (
+    <span style={{ ...styles.statusBadge, background: '#eee', color: '#999' }}>
+      None
+    </span>
+  );
+};
+
 const renderStatusBadge = (status) => {
   if (status === 'APPROVED') {
     return (
@@ -112,7 +133,7 @@ const App = () => {
       const data = await apiRequest(
         '/api/auth/login',
         'POST',
-        { emailOrPhone: email, password }, // matches backend
+        { emailOrPhone: email, password },
         null
       );
 
@@ -166,6 +187,30 @@ const App = () => {
       );
     } catch (err) {
       alert(err.message || 'Failed to update status');
+    }
+  };
+
+  const approveEdit = async (id) => {
+    try {
+      await apiRequest(`/api/admin/vendors/${id}/approve-edit`, 'PATCH', {}, token);
+      setVendors((prev) =>
+        prev.map((v) => (v._id === id ? { ...v, editRequestStatus: 'APPROVED' } : v))
+      );
+      alert('Edit request approved successfully!');
+    } catch (err) {
+      alert(err.message || 'Failed to approve edit');
+    }
+  };
+
+  const rejectEdit = async (id) => {
+    try {
+      await apiRequest(`/api/admin/vendors/${id}/reject-edit`, 'PATCH', {}, token);
+      setVendors((prev) =>
+        prev.map((v) => (v._id === id ? { ...v, editRequestStatus: 'NONE' } : v))
+      );
+      alert('Edit request rejected successfully!');
+    } catch (err) {
+      alert(err.message || 'Failed to reject edit');
     }
   };
 
@@ -277,212 +322,142 @@ const App = () => {
   const totalVendors = vendors.length;
   const pendingVendors = vendors.filter((v) => v.vendorStatus === 'PENDING').length;
   const approvedVendors = vendors.filter((v) => v.vendorStatus === 'APPROVED').length;
-  const rejectedVendors = vendors.filter((v) => v.vendorStatus === 'REJECTED').length;
+  const pendingEdits = vendors.filter((v) => v.editRequestStatus === 'PENDING').length;
 
   return (
     <div style={styles.page}>
-      {/* Header */}
       <header style={styles.header}>
-        <div>
-          <h2>Master Panipuri Admin</h2>
-          <p style={{ margin: 0, color: '#555' }}>
-            Logged in as {adminUser.fullName} ({adminUser.email})
-          </p>
-        </div>
+        <h1>Master Panipuri Admin</h1>
         <button style={styles.logoutBtn} onClick={handleLogout}>
           Logout
         </button>
       </header>
 
-      {/* Tabs */}
       <div style={styles.tabs}>
         <button
-          style={{
-            ...styles.tabBtn,
-            ...(activeTab === 'dashboard' ? styles.tabBtnActive : {}),
-          }}
+          style={activeTab === 'dashboard' ? styles.tabBtnActive : styles.tabBtn}
           onClick={() => setActiveTab('dashboard')}
         >
           Dashboard
         </button>
         <button
-          style={{
-            ...styles.tabBtn,
-            ...(activeTab === 'vendors' ? styles.tabBtnActive : {}),
-          }}
+          style={activeTab === 'vendors' ? styles.tabBtnActive : styles.tabBtn}
           onClick={() => setActiveTab('vendors')}
         >
           Vendors
         </button>
         <button
-          style={{
-            ...styles.tabBtn,
-            ...(activeTab === 'offers' ? styles.tabBtnActive : {}),
-          }}
+          style={activeTab === 'offers' ? styles.tabBtnActive : styles.tabBtn}
           onClick={() => setActiveTab('offers')}
         >
           Offers
         </button>
       </div>
 
-      <div style={styles.content}>
-        {/* Dashboard */}
-        {activeTab === 'dashboard' && (
-          <div>
-            <h3>Overview</h3>
-            <div style={styles.dashboardGrid}>
-              <div style={styles.cardSmall}>
-                <div style={styles.cardLabel}>Total Vendors</div>
-                <div style={styles.cardValue}>{totalVendors}</div>
-              </div>
-              <div style={styles.cardSmall}>
-                <div style={styles.cardLabel}>Pending Vendors</div>
-                <div style={styles.cardValue}>{pendingVendors}</div>
-              </div>
-              <div style={styles.cardSmall}>
-                <div style={styles.cardLabel}>Approved Vendors</div>
-                <div style={styles.cardValue}>{approvedVendors}</div>
-              </div>
-              <div style={styles.cardSmall}>
-                <div style={styles.cardLabel}>Rejected Vendors</div>
-                <div style={styles.cardValue}>{rejectedVendors}</div>
-              </div>
-              <div style={styles.cardSmall}>
-                <div style={styles.cardLabel}>Active Offers</div>
-                <div style={styles.cardValue}>{offers.length}</div>
-              </div>
+      {activeTab === 'dashboard' && (
+        <div style={styles.content}>
+          <div style={styles.dashboardGrid}>
+            <div style={styles.cardSmall}>
+              <div style={styles.cardLabel}>Total Vendors</div>
+              <div style={styles.cardValue}>{totalVendors}</div>
             </div>
-            <p style={{ marginTop: 16, color: '#555' }}>
-              Use the tabs above to approve vendors and manage offers.
-            </p>
+            <div style={styles.cardSmall}>
+              <div style={styles.cardLabel}>Pending Approval</div>
+              <div style={styles.cardValue}>{pendingVendors}</div>
+            </div>
+            <div style={styles.cardSmall}>
+              <div style={styles.cardLabel}>Approved Vendors</div>
+              <div style={styles.cardValue}>{approvedVendors}</div>
+            </div>
+            <div style={styles.cardSmall}>
+              <div style={styles.cardLabel}>Pending Edits</div>
+              <div style={styles.cardValue}>{pendingEdits}</div>
+            </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Vendors */}
-        {activeTab === 'vendors' && (
-          <div>
-            <div style={styles.sectionHeader}>
-              <h3>Vendors</h3>
-              <button style={styles.reloadBtn} onClick={loadVendors}>
-                Reload Vendors
-              </button>
-            </div>
+      {activeTab === 'vendors' && (
+        <div style={styles.content}>
+          <div style={styles.sectionHeader}>
+            <h3>Vendors Management</h3>
+            <button style={styles.reloadBtn} onClick={loadVendors}>
+              Reload
+            </button>
+          </div>
 
-            {vendorsLoading && <div>Loading vendors...</div>}
-            {vendorsError && <div style={styles.error}>{vendorsError}</div>}
-
-            {!vendorsLoading && !vendors.length && <div>No vendors found.</div>}
-
-            {!vendorsLoading && vendors.length > 0 && (
-              <table style={styles.table}>
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Contact</th>
-                    <th>Status</th>
-                    <th>Stall</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {vendors.map((v) => (
-                    <tr key={v._id}>
-                      <td>{v.fullName}</td>
-                      <td>
-                        <div>{v.email}</div>
-                        <div>{v.phone}</div>
-                      </td>
-                      <td>{renderStatusBadge(v.vendorStatus)}</td>
-                      <td>
-                        {v.stallName ? (
-                          <>
-                            <div>{v.stallName}</div>
-                            <div style={{ fontSize: 12, color: '#777' }}>
-                              {v.stallIsOpen ? 'Open' : 'Closed'}
-                            </div>
-                          </>
-                        ) : (
-                          <span style={{ fontSize: 12, color: '#999' }}>
-                            No stall yet
-                          </span>
-                        )}
-                      </td>
-                      <td>
+          {vendorsLoading ? (
+            <p>Loading vendors...</p>
+          ) : vendorsError ? (
+            <div style={styles.error}>{vendorsError}</div>
+          ) : (
+            <table style={styles.table}>
+              <thead>
+                <tr><th>Name</th><th>Email/Phone</th><th>Stall</th><th>Vendor Status</th><th>Edit Request</th><th>Actions</th></tr>
+              </thead>
+              <tbody>
+                {vendors.map((v) => (
+                  <tr key={v._id}>
+                    <td>{v.fullName}</td>
+                    <td>{v.email}<br />{v.phone}</td>
+                    <td>{v.stallName || '—'}</td>
+                    <td>{renderStatusBadge(v.vendorStatus)}</td>
+                    <td>{renderEditStatusBadge(v.editRequestStatus)}</td>
+                    <td>
+                      {v.vendorStatus !== 'APPROVED' && (
                         <button
-                          style={{ ...styles.actionBtn, background: '#2ecc71' }}
+                          style={{ ...styles.actionBtn, background: '#27ae60', borderWidth: 0 }}
                           onClick={() => updateVendorStatus(v._id, 'APPROVED')}
                         >
                           Approve
                         </button>
+                      )}
+                      {v.vendorStatus !== 'REJECTED' && (
                         <button
-                          style={{ ...styles.actionBtn, background: '#e74c3c' }}
+                          style={{ ...styles.actionBtn, background: '#c0392b', borderWidth: 0 }}
                           onClick={() => updateVendorStatus(v._id, 'REJECTED')}
                         >
                           Reject
                         </button>
-                        <button
-                          style={{ ...styles.actionBtn, background: '#f1c40f' }}
-                          onClick={() => updateVendorStatus(v._id, 'PENDING')}
-                        >
-                          Pending
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        )}
+                      )}
 
-        {/* Offers */}
-        {activeTab === 'offers' && (
-          <div>
-            <div style={styles.sectionHeader}>
-              <h3>Offers</h3>
-              <button style={styles.reloadBtn} onClick={loadOffers}>
-                Reload Offers
-              </button>
-            </div>
-
-            {offersLoading && <div>Loading offers...</div>}
-            {offersError && <div style={styles.error}>{offersError}</div>}
-
-            {!offersLoading && offers.length > 0 && (
-              <table style={styles.table}>
-                <thead>
-                  <tr>
-                    <th>Code</th>
-                    <th>Title</th>
-                    <th>Type</th>
-                    <th>Value</th>
-                    <th>Min Amount</th>
-                    <th>Valid</th>
+                      {v.editRequestStatus === 'PENDING' && (
+                        <>
+                          <button
+                            style={{ ...styles.actionBtn, background: '#27ae60', borderWidth: 0 }}
+                            onClick={() => approveEdit(v._id)}
+                          >
+                            Approve Edit
+                          </button>
+                          <button
+                            style={{ ...styles.actionBtn, background: '#c0392b', borderWidth: 0 }}
+                            onClick={() => rejectEdit(v._id)}
+                          >
+                            Reject Edit
+                          </button>
+                        </>
+                      )}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {offers.map((o) => (
-                    <tr key={o._id}>
-                      <td>{o.code}</td>
-                      <td>{o.title}</td>
-                      <td>{o.discountType}</td>
-                      <td>{o.discountValue}</td>
-                      <td>{o.minOrderAmount}</td>
-                      <td>
-                        {o.validFrom?.slice(0, 10)} - {o.validTo?.slice(0, 10)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
 
-            {!offersLoading && !offers.length && (
-              <div>No offers created yet.</div>
-            )}
+      {activeTab === 'offers' && (
+        <div style={styles.content}>
+          <div style={styles.sectionHeader}>
+            <h3>Manage Offers</h3>
+          </div>
 
-            {/* Create offer form */}
-            <div style={{ marginTop: 24 }}>
+          {offersLoading ? (
+            <p>Loading offers...</p>
+          ) : offersError ? (
+            <div style={styles.error}>{offersError}</div>
+          ) : (
+            <>
               <h4>Create New Offer</h4>
               <form onSubmit={createOffer} style={styles.offerForm}>
                 <div style={styles.fieldRow}>
@@ -618,10 +593,13 @@ const App = () => {
                   {creatingOffer ? 'Creating...' : 'Create Offer'}
                 </button>
               </form>
-            </div>
-          </div>
-        )}
-      </div>
+
+              <h4>Existing Offers</h4>
+              {/* Add your offers list/table here if needed */}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 };

@@ -1,11 +1,18 @@
+// VendorDashboardScreen.js
 import React, { useContext, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  ScrollView,
+  StatusBar,
+} from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
 import { apiRequest } from '../../api/client';
 
 const VendorDashboardScreen = () => {
   const { user, token } = useContext(AuthContext);
-
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState('');
@@ -30,8 +37,8 @@ const VendorDashboardScreen = () => {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" />
-        <Text style={{ marginTop: 8 }}>Loading today&apos;s summary...</Text>
+        <ActivityIndicator size="large" color="#FF6B00" />
+        <Text style={styles.loadingText}>Loading dashboard...</Text>
       </View>
     );
   }
@@ -39,8 +46,8 @@ const VendorDashboardScreen = () => {
   if (error) {
     return (
       <View style={styles.center}>
-        <Text style={styles.error}>{error}</Text>
-        <Text style={{ marginTop: 4 }}>Make sure you have some payments today.</Text>
+        <Text style={styles.errorText}>Unable to load data</Text>
+        <Text style={styles.errorSub}>{error}</Text>
       </View>
     );
   }
@@ -51,141 +58,93 @@ const VendorDashboardScreen = () => {
   const byMethod = summary?.byMethod || {};
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 24 }}>
-      <Text style={styles.title}>Hello, {user?.fullName}</Text>
-      <Text style={styles.subtitle}>Today&apos;s Vendor Dashboard</Text>
+    <>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFCF7" />
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <Text style={styles.appName}>Panipuri</Text>
+          <Text style={styles.greeting}>Namaste, {user?.fullName}!</Text>
+          <Text style={styles.subtitle}>Your business summary for today</Text>
+        </View>
 
-      <View style={styles.row}>
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>Total Sales (₹)</Text>
-          <Text style={styles.cardValue}>₹{totalAmount}</Text>
+        <View style={styles.heroCard}>
+          <Text style={styles.heroLabel}>Today's Earnings</Text>
+          <Text style={styles.heroAmount}>₹{totalAmount.toLocaleString('en-IN')}</Text>
+          <Text style={styles.heroSub}>from {summary?.count || 0} orders</Text>
         </View>
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>Plates Sold</Text>
-          <Text style={styles.cardValue}>{totalPlates}</Text>
-        </View>
-      </View>
 
-      <View style={styles.row}>
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>Free Plates Given</Text>
-          <Text style={styles.cardValue}>{totalFreePlates}</Text>
+        <View style={styles.statsGrid}>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Plates Sold</Text>
+            <Text style={styles.statValue}>{totalPlates}</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Free Plates</Text>
+            <Text style={styles.statValue}>{totalFreePlates}</Text>
+          </View>
         </View>
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>Orders Today</Text>
-          <Text style={styles.cardValue}>{summary?.count || 0}</Text>
-        </View>
-      </View>
 
-      <View style={styles.fullCard}>
-        <Text style={styles.sectionTitle}>By Payment Method</Text>
-        {Object.keys(byMethod).length === 0 ? (
-          <Text style={styles.smallText}>No payments yet today.</Text>
-        ) : (
-          Object.entries(byMethod).map(([method, amount]) => (
-            <View key={method} style={styles.methodRow}>
-              <Text style={styles.methodLabel}>{method}</Text>
-              <Text style={styles.methodAmount}>₹{amount}</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Payment Methods</Text>
+          {Object.keys(byMethod).length === 0 ? (
+            <Text style={styles.emptyText}>No payments recorded today</Text>
+          ) : (
+            <View style={styles.methodList}>
+              {Object.entries(byMethod).map(([method, amount]) => (
+                <View key={method} style={styles.methodRow}>
+                  <Text style={styles.methodName}>
+                    {method === 'cash' ? 'Cash' : method === 'upi' ? 'UPI' : method.toUpperCase()}
+                  </Text>
+                  <Text style={styles.methodAmount}>₹{amount.toLocaleString('en-IN')}</Text>
+                </View>
+              ))}
             </View>
-          ))
-        )}
-      </View>
+          )}
+        </View>
 
-      <Text style={styles.footerText}>
-        Data is for today (based on server time). We can later add date filters and full settlements.
-      </Text>
-    </ScrollView>
+        <View style={{ height: 60 }} />
+      </ScrollView>
+    </>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  container: { flex: 1, backgroundColor: '#FFFCF7' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFCF7' },
+  header: { padding: 24, paddingTop: 60 },
+  appName: { fontSize: 32, fontWeight: '900', color: '#FF6B00', marginBottom: 8 },
+  greeting: { fontSize: 22, fontWeight: '700', color: '#222' },
+  subtitle: { fontSize: 15, color: '#777', marginTop: 6 },
+  heroCard: {
+    marginHorizontal: 20,
+    backgroundColor: '#FF6B00',
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 20,
+    elevation: 8,
+  },
+  heroLabel: { color: '#FFF8E1', fontSize: 14, fontWeight: '600' },
+  heroAmount: { color: '#FFFFFF', fontSize: 40, fontWeight: '900', marginVertical: 8 },
+  heroSub: { color: '#FFF0E0', fontSize: 14 },
+  statsGrid: { flexDirection: 'row', paddingHorizontal: 20, gap: 16, marginBottom: 24 },
+  statCard: {
     flex: 1,
-    backgroundColor: '#fff7e6',
-    padding: 16,
-    paddingTop: 40,
-  },
-  center: {
-    flex: 1,
-    backgroundColor: '#fff7e6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#ff8a00',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#555',
-    marginBottom: 16,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 12,
-  },
-  card: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 12,
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 20,
+    elevation: 4,
     borderWidth: 1,
-    borderColor: '#ffd9a3',
+    borderColor: '#FFE0B3',
   },
-  fullCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#ffd9a3',
-    marginTop: 8,
-  },
-  cardLabel: {
-    fontSize: 12,
-    color: '#777',
-  },
-  cardValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#333',
-    marginTop: 4,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#ff8a00',
-    marginBottom: 8,
-  },
-  methodRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-  },
-  methodLabel: {
-    fontSize: 13,
-    color: '#555',
-  },
-  methodAmount: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#333',
-  },
-  smallText: {
-    fontSize: 12,
-    color: '#777',
-  },
-  footerText: {
-    fontSize: 11,
-    color: '#777',
-    marginTop: 12,
-  },
-  error: {
-    color: 'red',
-    textAlign: 'center',
-  },
+  statLabel: { fontSize: 13, color: '#888', fontWeight: '600' },
+  statValue: { fontSize: 28, fontWeight: '800', color: '#222', marginTop: 6 },
+  section: { marginHorizontal: 20, backgroundColor: '#FFF', borderRadius: 16, padding: 20, elevation: 4, marginBottom: 20 },
+  sectionTitle: { fontSize: 17, fontWeight: '700', color: '#FF6B00', marginBottom: 16 },
+  emptyText: { fontSize: 14, color: '#999', textAlign: 'center', paddingVertical: 20 },
+  methodList: { borderTopWidth: 1, borderTopColor: '#F0F0F0', paddingTop: 12 },
+  methodRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12 },
+  methodName: { fontSize: 15, color: '#444', fontWeight: '600', textTransform: 'capitalize' },
+  methodAmount: { fontSize: 16, fontWeight: '700', color: '#222' },
 });
 
 export default VendorDashboardScreen;

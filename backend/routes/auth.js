@@ -26,15 +26,13 @@ router.post('/register', async (req, res) => {
   try {
     const { fullName, email, phone, password, role, referralCode } = req.body;
 
-
     if (!fullName || !email || !phone || !password || !role) {
       return res.status(400).json({ message: 'All fields are required' });
     }
 
-   if (!['customer', 'vendor', 'admin'].includes(role)) {
-  return res.status(400).json({ message: 'Invalid role' });
-}
-
+    if (!['customer', 'vendor', 'admin'].includes(role)) {
+      return res.status(400).json({ message: 'Invalid role' });
+    }
 
     const existingEmail = await User.findOne({ email });
     if (existingEmail) {
@@ -59,12 +57,12 @@ router.post('/register', async (req, res) => {
     });
 
     if (referralCode) {
-  const referrer = await User.findOne({ referralCode: referralCode.toUpperCase() });
-  if (referrer) {
-    user.referredBy = referrer._id;
-    await user.save();
-  }
-}
+      const referrer = await User.findOne({ referralCode: referralCode.toUpperCase() });
+      if (referrer) {
+        user.referredBy = referrer._id;
+        await user.save();
+      }
+    }
 
     const token = signToken(user);
 
@@ -78,6 +76,7 @@ router.post('/register', async (req, res) => {
         phone: user.phone,
         role: user.role,
         vendorStatus: user.vendorStatus,
+        editRequestStatus: user.editRequestStatus || 'NONE',  // Added
       },
     });
   } catch (err) {
@@ -123,6 +122,7 @@ router.post('/login', async (req, res) => {
         phone: user.phone,
         role: user.role,
         vendorStatus: user.vendorStatus,
+        editRequestStatus: user.editRequestStatus || 'NONE',  // Added
       },
     });
   } catch (err) {

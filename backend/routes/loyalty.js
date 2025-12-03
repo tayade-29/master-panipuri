@@ -22,6 +22,55 @@ const requireCustomer = async (req, res, next) => {
   }
 };
 
+const requireVendor = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user || user.role !== 'vendor') {
+      return res.status(403).json({ message: 'Vendor access only' });
+    }
+    req.vendor = user;
+    next();
+  } catch (err) {
+    console.error('requireVendor error:', err.message);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// backend/routes/loyalty.js  (add this route inside the existing file)
+
+router.get('/vendor/customers', auth, requireVendor, async (req, res) => {
+  try {
+    const loyalties = await Loyalty.find({ vendor: req.vendor._id })
+      .populate({
+        path: 'customer',
+        select: 'fullName phone', // only fetch needed fields
+      })
+      .sort({ updatedAt: -1 })
+      .lean(); // improves performance
+
+    const customers = loyalties.map(l => ({
+      customerId: l.customer._id.toString(),
+      fullName: l.customer.fullName || 'Unknown',
+      phone: l.customer.phone || 'N/A',
+      currentPlateCount: l.plateCount || 0,
+      platesNeeded: l.plateCount ? 5 - l.plateCount : 5,
+      lastVisit: l.updatedAt,
+    }));
+
+    return res.json({
+      success: true,
+      count: customers.length,
+      customers,
+    });
+  } catch (err) {
+    console.error('Error fetching vendor customers:', err.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to load customers',
+    });
+  }
+});
+
 /**
  * GET /api/loyalty/summary
  * Customer loyalty + stats across all vendors
@@ -113,6 +162,26 @@ router.get('/summary', auth, requireCustomer, async (req, res) => {
   } catch (err) {
     console.error('Loyalty summary error:', err.message);
     return res.status(500).json({ message: 'Server error' });
+  }
+});
+router.get('/vendor/customers', auth, requireVendor, async (req, res) => {
+  try {
+    const loyalties = await Loyalty.find({ vendor: req.vendor._id })
+      .populate('customer', 'fullName phone')
+      .sort({ updatedAt: -1 });
+
+    const customers = loyalties.map(l => ({
+      customerId: l.customer._id,
+      fullName: l.customer.fullName,
+      phone: l.customer.phone,
+      currentPlateCount: l.plateCount,
+      platesNeeded: l.plateCount ? 5 - l.plateCount : 5,
+    }));
+
+    res.json({ customers });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

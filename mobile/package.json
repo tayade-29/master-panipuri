@@ -23,5 +23,13 @@
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0"
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "@react-native-community/cli": "^20.0.2",
+    "@react-native/metro-config": "^0.82.1",
+    "metro": "^0.83.3",
+    "metro-config": "^0.83.3",
+    "metro-resolver": "^0.83.3",
+    "metro-runtime": "^0.83.3"
+  }
 }

@@ -25,10 +25,9 @@ const requireAdmin = async (req, res, next) => {
  * GET /api/admin/vendors
  * List all vendor-like users (role=vendor or vendorStatus set)
  */
+
 router.get('/vendors', auth, requireAdmin, async (req, res) => {
   try {
-    // Show all users that look like vendors:
-    // either explicit role=vendor or vendorStatus defined
     const vendors = await User.find({
       $or: [
         { role: 'vendor' },
@@ -36,7 +35,7 @@ router.get('/vendors', auth, requireAdmin, async (req, res) => {
       ],
     })
       .sort({ createdAt: -1 })
-      .select('fullName email phone vendorStatus createdAt');
+      .select('fullName email phone vendorStatus createdAt editRequestStatus');  // NEW: include editRequestStatus
 
     const vendorIds = vendors.map((v) => v._id);
 
@@ -63,6 +62,7 @@ router.get('/vendors', auth, requireAdmin, async (req, res) => {
         createdAt: v.createdAt,
         stallName: extra.stallName || null,
         stallIsOpen: extra.isOpen ?? null,
+        editRequestStatus: v.editRequestStatus || 'NONE',  // NEW
       };
     });
 
@@ -74,7 +74,6 @@ router.get('/vendors', auth, requireAdmin, async (req, res) => {
     return res.status(500).json({ message: 'Server error' });
   }
 });
-
 /**
  * PATCH /api/admin/vendors/:id/status
  * Body: { status: 'PENDING' | 'APPROVED' | 'REJECTED' }
@@ -102,6 +101,46 @@ router.patch('/vendors/:id/status', auth, requireAdmin, async (req, res) => {
     return res.json({ message: 'Vendor status updated', vendor });
   } catch (err) {
     console.error('Admin update vendor status error:', err.message);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+router.patch('/vendors/:id/approve-edit', auth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const vendor = await User.findOneAndUpdate(
+      { _id: id, role: 'vendor' },
+      { editRequestStatus: 'APPROVED' },
+      { new: true }
+    ).select('fullName email phone vendorStatus editRequestStatus');
+
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    return res.json({ message: 'Edit permission approved', vendor });
+  } catch (err) {
+    console.error('Admin approve edit error:', err.message);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+router.patch('/vendors/:id/reject-edit', auth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const vendor = await User.findOneAndUpdate(
+      { _id: id, role: 'vendor' },
+      { editRequestStatus: 'NONE' },
+      { new: true }
+    ).select('fullName email phone vendorStatus editRequestStatus');
+
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    return res.json({ message: 'Edit request rejected', vendor });
+  } catch (err) {
+    console.error('Admin reject edit error:', err.message);
     return res.status(500).json({ message: 'Server error' });
   }
 });

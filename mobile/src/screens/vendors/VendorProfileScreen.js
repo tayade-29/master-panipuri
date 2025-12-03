@@ -1,4 +1,4 @@
-// src/screens/VendorProfileScreen.js
+// VendorProfileScreen.js
 import React, { useContext, useEffect, useState } from 'react';
 import {
   View,
@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  StatusBar,
 } from 'react-native';
 import * as Location from 'expo-location';
 import { AuthContext } from '../../context/AuthContext';
@@ -16,346 +17,179 @@ import { apiRequest } from '../../api/client';
 
 const VendorProfileScreen = () => {
   const { user, logout, token } = useContext(AuthContext);
-
-  const [upiId, setUpiId] = useState('');
-
-  const [stallLoading, setStallLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [stall, setStall] = useState(null);
-  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [editMode, setEditMode] = useState(false);
 
+  // Form fields
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [address, setAddress] = useState('');
   const [pricePerPlate, setPricePerPlate] = useState('');
   const [tagsText, setTagsText] = useState('');
-  const [currentLatLng, setCurrentLatLng] = useState(null);
+  const [upiId, setUpiId] = useState('');
+  const [location, setLocation] = useState(null);
 
-  const loadMyStall = async () => {
-    
+  const loadStall = async () => {
     try {
-      setError('');
-      setStallLoading(true);
       const res = await apiRequest('/api/stalls/mine', 'GET', null, token);
       const s = res.stall;
       setStall(s);
-
-     if (s) {
-  setName(s.name || '');
-  setDescription(s.description || '');
-  setAddress(s.address || '');
-  setPricePerPlate(s.pricePerPlate ? String(s.pricePerPlate) : '');
-  setTagsText(s.tags && s.tags.length ? s.tags.join(', ') : '');
-  setUpiId(s.upiId || ''); // Load UPI ID
-
-  if (s.location && s.location.coordinates) {
-    const [lng, lat] = s.location.coordinates;
-    setCurrentLatLng({ lat, lng });
-  }
-}
+      if (s) {
+        setName(s.name || '');
+        setDescription(s.description || '');
+        setAddress(s.address || '');
+        setPricePerPlate(s.pricePerPlate ? String(s.pricePerPlate) : '');
+        setTagsText(s.tags?.join(', ') || '');
+        setUpiId(s.upiId || '');
+        if (s.location?.coordinates) {
+          const [lng, lat] = s.location.coordinates;
+          setLocation({ lat, lng });
+        }
+      }
     } catch (err) {
-      setError(err.message || 'Failed to load stall');
+      console.log(err);
     } finally {
-      setStallLoading(false);
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadMyStall();
+    loadStall();
   }, []);
 
-  const handleUseMyLocation = async () => {
-    try {
-      const { status } =
-        await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(
-          'Permission required',
-          'Location permission is needed to set stall location.'
-        );
-        return;
-      }
+  const handleUseLocation = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') return Alert.alert('Permission denied');
 
-      const loc = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
-
-      const lat = loc.coords.latitude;
-      const lng = loc.coords.longitude;
-      setCurrentLatLng({ lat, lng });
-      Alert.alert('Location set', 'Stall location updated to your current GPS location.');
-    } catch (err) {
-      Alert.alert('Error', 'Failed to get your location.');
-      console.log('Location error:', err);
-    }
+    const loc = await Location.getCurrentPositionAsync({});
+    setLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
+    Alert.alert('Location updated!');
   };
 
-  const handleSaveStall = async () => {
-    if (!name.trim()) {
-      Alert.alert('Validation', 'Stall name is required.');
-      return;
-    }
+  const handleSave = async () => {
+    if (!name.trim()) return Alert.alert('Name required');
 
     try {
       setSaving(true);
-      setError('');
+      const body = {
+        name: name.trim(),
+        description: description.trim(),
+        address: address.trim(),
+        pricePerPlate: Number(pricePerPlate) || 0,
+        tags: tagsText.split(',').map(t => t.trim()).filter(Boolean),
+        upiId: upiId.trim(),
+        ...(location && { lat: location.lat, lng: location.lng }),
+      };
 
-      const tags =
-        tagsText
-          .split(',')
-          .map((t) => t.trim())
-          .filter((t) => t.length > 0) || [];
-
-     const body = {
-  name: name.trim(),
-  description: description.trim(),
-  address: address.trim(),
-  pricePerPlate: Number(pricePerPlate) || 0,
-  tags,
-  upiId: upiId.trim(), // Send UPI ID
-};
-
-if (currentLatLng) {
-  body.lat = currentLatLng.lat;
-  body.lng = currentLatLng.lng;
-}
-
-      const res = await apiRequest('/api/stalls/mine', 'POST', body, token);
-      setStall(res.stall);
-      Alert.alert('Success', 'Stall saved successfully.');
+      await apiRequest('/api/stalls/mine', 'POST', body, token);
+      Alert.alert('Saved!', 'Your stall is updated.');
+      setEditMode(false);
     } catch (err) {
-      setError(err.message || 'Failed to save stall');
+      Alert.alert('Error', err.message);
     } finally {
       setSaving(false);
     }
   };
 
-  if (stallLoading) {
+  if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" />
-        <Text style={{ marginTop: 8 }}>Loading stall info...</Text>
+        <ActivityIndicator size="large" color="#FF6B00" />
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      <Text style={styles.title}>Vendor Profile</Text>
+    <>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFCF7" />
+      <ScrollView style={styles.container}>
+        <Text style={styles.title}>My Profile</Text>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Name</Text>
-        <Text style={styles.value}>{user?.fullName}</Text>
+        {/* User Info */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Account</Text>
+          <Text style={styles.info}>{user?.fullName}</Text>
+          <Text style={styles.info}>{user?.phone}</Text>
+          <Text style={styles.info}>{user?.email}</Text>
+        </View>
 
-        <Text style={styles.label}>Email</Text>
-        <Text style={styles.value}>{user?.email}</Text>
+        {/* Stall Info */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>My Stall</Text>
+            <TouchableOpacity onPress={() => setEditMode(!editMode)}>
+              <Text style={styles.editBtn}>{editMode ? 'Cancel' : 'Edit'}</Text>
+            </TouchableOpacity>
+          </View>
 
-        <Text style={styles.label}>Phone</Text>
-        <Text style={styles.value}>{user?.phone}</Text>
+          {editMode ? (
+            <>
+              <TextInput style={styles.input} placeholder="Stall Name" value={name} onChangeText={setName} />
+              <TextInput style={styles.input} placeholder="Description" value={description} onChangeText={setDescription} />
+              <TextInput style={styles.input} placeholder="Address" value={address} onChangeText={setAddress} />
+              <TextInput style={styles.input} placeholder="Price per plate" value={pricePerPlate} onChangeText={setPricePerPlate} keyboardType="numeric" />
+              <TextInput style={styles.input} placeholder="Tags (comma separated)" value={tagsText} onChangeText={setTagsText} />
+              <TextInput style={styles.input} placeholder="UPI ID" value={upiId} onChangeText={setUpiId} />
 
-        <Text style={styles.label}>Vendor Status</Text>
-        <Text style={styles.value}>{user?.vendorStatus}</Text>
-      </View>
+              <TouchableOpacity style={styles.locationBtn} onPress={handleUseLocation}>
+                <Text style={styles.locationBtnText}>Use Current Location</Text>
+              </TouchableOpacity>
 
-      <Text style={styles.sectionTitle}>My Stall</Text>
+              <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
+                <Text style={styles.saveBtnText}>{saving ? 'Saving...' : 'Save Changes'}</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <Text style={styles.info}><Text style={styles.bold}>Name:</Text> {name || 'Not set'}</Text>
+              <Text style={styles.info}><Text style={styles.bold}>Price:</Text> ₹{pricePerPlate || '—'} per plate</Text>
+              <Text style={styles.info}><Text style={styles.bold}>UPI:</Text> {upiId || 'Not added'}</Text>
+              <Text style={styles.info}><Text style={styles.bold}>Location:</Text> {location ? 'Set' : 'Not set'}</Text>
+            </>
+          )}
+        </View>
+<TouchableOpacity style={styles.logoutBtn} onPress={logout}>
+          <Text style={styles.logoutBtnText}>Logout</Text>
+        </TouchableOpacity>
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      // Inside VendorProfileScreen.js – replace the stall form card content
-
-<View style={styles.card}>
-  <Text style={styles.label}>Stall Name *</Text>
-  <TextInput
-    style={styles.input}
-    value={name}
-    onChangeText={setName}
-    placeholder="e.g. Sharma Ji Panipuri"
-    placeholderTextColor="#999"
-  />
-
-  <Text style={styles.label}>Description</Text>
-  <TextInput
-    style={[styles.input, { height: 70 }]}
-    value={description}
-    onChangeText={setDescription}
-    placeholder="Crispy & spicy panipuri..."
-    placeholderTextColor="#999"
-    multiline
-  />
-
-  <Text style={styles.label}>Address</Text>
-  <TextInput
-    style={styles.input}
-    value={address}
-    onChangeText={setAddress}
-    placeholder="Near City Mall, Main Road..."
-    placeholderTextColor="#999"
-  />
-
-  <Text style={styles.label}>Price Per Plate (₹)</Text>
-  <TextInput
-    style={styles.input}
-    value={pricePerPlate}
-    onChangeText={setPricePerPlate}
-    placeholder="30"
-    placeholderTextColor="#999"
-    keyboardType="numeric"
-  />
-
-  <Text style={styles.label}>Tags (comma separated)</Text>
-  <TextInput
-    style={styles.input}
-    value={tagsText}
-    onChangeText={setTagsText}
-    placeholder="Spicy, Crispy, Sweet"
-    placeholderTextColor="#999"
-  />
-
-  {/* NEW: UPI ID Field */}
-  <Text style={styles.label}>Your UPI ID (for PhonePe/Google Pay)</Text>
-  <TextInput
-    style={styles.input}
-    value={upiId}
-    onChangeText={setUpiId}
-    placeholder="yourname@oksbi or 123456@ybl"
-    placeholderTextColor="#999"
-    autoCapitalize="none"
-    keyboardType="email-address"
-  />
-  {upiId ? (
-    <Text style={{ color: 'green', fontSize: 12, marginTop: 4 }}>
-      UPI ID saved – customers can now pay online!
-    </Text>
-  ) : (
-    <Text style={{ color: '#d9534f', fontSize: 12, marginTop: 4 }}>
-      Add UPI ID to accept online payments
-    </Text>
-  )}
-
-  {/* Optional: QR Image Upload Later */}
-  {/* <Text style={styles.label}>OR Upload QR Code (coming soon)</Text> */}
-
-  <Text style={styles.label}>Location</Text>
-  {currentLatLng ? (
-    <Text style={styles.value}>
-      Lat: {currentLatLng.lat.toFixed(5)}, Lng: {currentLatLng.lng.toFixed(5)}
-    </Text>
-  ) : (
-    <Text style={styles.value}>No location set yet.</Text>
-  )}
-
-  <TouchableOpacity
-    style={styles.secondaryButton}
-    onPress={handleUseMyLocation}
-  >
-    <Text style={styles.secondaryButtonText}>Use My Current Location</Text>
-  </TouchableOpacity>
-
-  <TouchableOpacity
-    style={styles.button}
-    onPress={handleSaveStall}
-    disabled={saving}
-  >
-    {saving ? (
-      <ActivityIndicator color="#fff" />
-    ) : (
-      <Text style={styles.buttonText}>Save Stall</Text>
-    )}
-  </TouchableOpacity>
-</View>
-
-      <TouchableOpacity style={styles.logoutButton} onPress={logout}>
-        <Text style={styles.logoutText}>Logout</Text>
-      </TouchableOpacity>
-    </ScrollView>
+        <View style={{ height: 100 }} />
+      </ScrollView>
+    </>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff7e6',
+  container: { flex: 1, backgroundColor: '#FFFCF7', paddingTop: 50 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFCF7' },
+  title: { fontSize: 26, fontWeight: '800', color: '#222', textAlign: 'center', marginBottom: 20 },
+  card: { marginHorizontal: 20, backgroundColor: '#FFF', borderRadius: 16, padding: 20, marginBottom: 20, elevation: 4 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  cardTitle: { fontSize: 18, fontWeight: '700', color: '#FF6B00' },
+  editBtn: { color: '#FF6B00', fontWeight: '600' },
+  info: { fontSize: 15, color: '#444', marginBottom: 8 },
+  bold: { fontWeight: '600', color: '#222' },
+  input: { backgroundColor: '#F9F9F9', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#E0E0E0' },
+  locationBtn: { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#FF6B00', padding: 14, borderRadius: 12, alignItems: 'center', marginBottom: 12 },
+  locationBtnText: { color: '#FF6B00', fontWeight: '600' },
+  saveBtn: { backgroundColor: '#FF6B00', padding: 16, borderRadius: 12, alignItems: 'center' },
+  saveBtnText: { color: '#FFF', fontWeight: '700', fontSize: 16 },
+  logoutBtn: { alignSelf: 'center', padding: 16 },
+  logoutText: { color: '#E53935', fontWeight: '600', fontSize: 16 },
+  logoutBtn: {
+    marginHorizontal: 20,
+    backgroundColor: '#E53935',
     padding: 16,
-    paddingTop: 40,
-  },
-  center: {
-    flex: 1,
-    backgroundColor: '#fff7e6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    marginBottom: 16,
-    color: '#ff8a00',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 8,
-    color: '#ff8a00',
-  },
-  card: {
-    backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#ffd9a3',
-    marginBottom: 24,
-  },
-  label: {
-    fontSize: 12,
-    color: '#888',
-    marginTop: 8,
-  },
-  value: {
-    fontSize: 14,
-    color: '#333',
-  },
-  input: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: '#ffd9a3',
-    marginTop: 4,
-  },
-  button: {
-    marginTop: 16,
-    backgroundColor: '#ff8a00',
-    paddingVertical: 12,
-    borderRadius: 10,
     alignItems: 'center',
+    marginTop: 30,
+    elevation: 4,
   },
-  buttonText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  secondaryButton: {
-    marginTop: 12,
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ff8a00',
-  },
-  secondaryButtonText: {
-    color: '#ff8a00',
-    fontWeight: '600',
-  },
-  logoutButton: {
-    alignSelf: 'center',
-    marginTop: 8,
-  },
-  logoutText: {
-    color: '#d9534f',
-    fontWeight: '600',
-  },
-  error: {
-    color: 'red',
-    marginBottom: 8,
+  logoutBtnText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });
 
