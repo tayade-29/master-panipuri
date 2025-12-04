@@ -1,0 +1,11 @@
+# Ignore all node_modules everywhere
+node_modules/
+*/node_modules/
+**/node_modules/
+
+# Expo & React Native stuff (safe to ignore)
+.expo/
+.expo-shared/
+dist/
+build/
+*.log
