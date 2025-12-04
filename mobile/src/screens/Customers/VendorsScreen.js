@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import * as Location from 'expo-location';
 import { apiRequest } from '../../api/client';
+import { Linking } from 'react-native';
 
 // Haversine distance in km
 const getDistanceKm = (lat1, lon1, lat2, lon2) => {
@@ -156,6 +157,31 @@ const VendorsScreen = ({ navigation }) => {
       }
     }
 
+    const openDirections = (stall) => {
+  if (!stall.location || !stall.location.coordinates) {
+    alert('Location not available for this stall');
+    return;
+  }
+
+  const [lng, lat] = stall.location.coordinates; // MongoDB stores [longitude, latitude]
+
+  // This link works on both Android and iOS
+  const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+
+  // Open the map
+  Linking.canOpenURL(url)
+    .then((supported) => {
+      if (supported) {
+        Linking.openURL(url);
+      } else {
+        alert("Can't open maps. Please install Google Maps.");
+      }
+    })
+    .catch(() => {
+      alert('Error opening maps');
+    });
+};
+
     return (
       <View style={styles.card}>
         <Text style={styles.stallName}>{item.name}</Text>
@@ -178,12 +204,15 @@ const VendorsScreen = ({ navigation }) => {
 >
   <Text style={styles.buttonText}>Pay</Text>
 </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.button, styles.buttonOutline]}>
-            <Text style={[styles.buttonText, styles.buttonTextOutline]}>
-              Visit
-            </Text>
-          </TouchableOpacity>
+<TouchableOpacity 
+  style={[styles.button, styles.buttonOutline]}
+  onPress={() => openDirections(item)}
+>
+  <Text style={[styles.buttonText, styles.buttonTextOutline]}>
+    Visit
+  </Text>
+</TouchableOpacity>
+          
         </View>
       </View>
     );

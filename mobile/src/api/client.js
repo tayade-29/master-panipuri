@@ -1,68 +1,62 @@
-// client.js (or apiRequest.js)
+// src/api/client.js
 import { Platform } from 'react-native';
 import API_BASE_URL from './apiConfig';
 
-export const apiRequest = async (path, method = 'GET', body, token) => {
+export const apiRequest = async (
+  path,
+  method = 'GET',
+  body = null,
+  token = null,
+  retries = 5
+) => {
   const url = `${API_BASE_URL}${path}`;
-
   const headers = {
     'Content-Type': 'application/json',
     Accept: 'application/json',
   };
+  if (token) headers.Authorization = `Bearer ${token}`;
 
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
+  const options = {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  };
+
+  if (Platform.OS === 'android' && __DEV__) {
+    options.headers['User-Agent'] = 'ReactNative';
   }
 
-  try {
-    const response = await fetch(url, {
-      method,
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
+  for (let i = 1; i <= retries; i++) {
+    try {
+      console.log(`API Request: ${method} ${url} (Attempt ${i}/${retries})`); // For debugging
+      const res = await fetch(url, options);
+      const contentType = res.headers.get('content-type');
 
-      // THIS IS THE MAGIC FIX FOR ANDROID + EXPO GO + RENDER
-      // Works in Expo Go AND in standalone APK
-      ...(Platform.OS === 'android' && !__DEV__
-        ? {}
-        : { 
-            // In development (Expo Go) we need longer timeout + cache busting
-            cache: 'no-store',
-            // Some Android versions need this header to accept Render's cert
-            'User-Agent': 'ReactNative',
-          }),
-    });
+      // Render sleeping → returns HTML
+      if (!contentType?.includes('application/json')) {
+        if (i < retries) {
+          console.log('Server sleeping, retrying in 30s...');
+          await new Promise(r => setTimeout(r, 30000)); // Increased to 30s
+          continue;
+        }
+        throw new Error('Server is taking too long to wake up. Try again later.');
+      }
 
-    // Render free tier sometimes returns HTML error page instead of JSON when sleeping
-    const contentType = response.headers.get('content-type');
-    let data = {};
+      const data = await res.json();
 
-    if (contentType && contentType.includes('application/json')) {
-      data = await response.json();
-    } else {
-      // If not JSON (e.g. Render's "sleeping" page), treat as error
-      throw new Error('Backend is waking up... Please wait 20–40 seconds and try again');
-    }
+      if (!res.ok) {
+        if (res.status === 401) throw new Error('TOKEN_EXPIRED');
+        throw new Error(data.message || 'Request failed');
+      }
 
-    if (!response.ok) {
-      const msg = data?.message || data?.error || 'Network request failed';
-      throw new Error(msg);
-    }
-
-    return data;
-  } catch (error) {
-    // Better error message for the most common case
-    if (error.message.includes('Network request failed')) {
-      if (__DEV__) {
-        throw new Error(
-          'Cannot reach backend. Either:\n' +
-          '• Your local server is OFF (run it), OR\n' +
-          '• Render is sleeping (wait 30–60 sec and retry)\n' +
-          '• You are on Android + Expo Go (known issue – build APK instead)'
-        );
-      } else {
-        throw new Error('No internet or server is down. Please try again.');
+      return data;
+    } catch (err) {
+      console.error('API Error:', err.message);
+      if (i === retries) throw err;
+      if (err.message.includes('Network') || err.message.includes('fetch')) {
+        console.log('Network issue, retrying in 10s...');
+        await new Promise(r => setTimeout(r, 10000));
       }
     }
-    throw error;
   }
 };

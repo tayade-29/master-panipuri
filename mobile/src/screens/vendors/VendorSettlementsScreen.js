@@ -1,4 +1,4 @@
-// VendorSettlementsScreen.js
+// src/screens/Vendor/VendorSettlementsScreen.js
 import React, { useContext, useEffect, useState } from 'react';
 import {
   View,
@@ -8,6 +8,8 @@ import {
   FlatList,
   RefreshControl,
   StatusBar,
+  TouchableOpacity,
+  Alert, // ← YOU FORGOT THIS
 } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
 import { apiRequest } from '../../api/client';
@@ -28,12 +30,34 @@ const VendorSettlementsScreen = () => {
       const res = await apiRequest('/api/payments/vendor/list', 'GET', null, token);
       setData(res);
     } catch (err) {
-      Alert.alert('Error', err.message);
+      Alert.alert('Error', err.message || 'Failed to load sales');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
+
+ const confirmPayment = async (id) => {
+  Alert.alert(
+    'Confirm Payment',
+    'This will add plates to customer loyalty.',
+    [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Confirm',
+        onPress: async () => {
+          try {
+            await apiRequest(`/api/payments/vendor/confirm/${id}`, 'POST', null, token);
+            Alert.alert('Success', 'Payment confirmed!');
+            loadData();
+          } catch (err) {
+            Alert.alert('Error', err.message);
+          }
+        },
+      },
+    ]
+  );
+};
 
   useEffect(() => {
     loadData();
@@ -56,7 +80,9 @@ const VendorSettlementsScreen = () => {
         <Text style={styles.title}>Recent Sales</Text>
 
         <View style={styles.summary}>
-          <Text style={styles.summaryText}>₹{data?.totalAmount || 0} • {data?.count || 0} orders • {data?.totalPlates || 0} plates</Text>
+          <Text style={styles.summaryText}>
+            ₹{data?.totalAmount || 0} • {data?.count || 0} orders • {data?.totalPlates || 0} plates
+          </Text>
         </View>
 
         <FlatList
@@ -65,16 +91,34 @@ const VendorSettlementsScreen = () => {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} />}
           ListEmptyComponent={<Text style={styles.empty}>No sales yet</Text>}
           renderItem={({ item }) => (
-            <View style={styles.item}>
-              <View style={styles.itemHeader}>
-                <Text style={styles.amount}>₹{item.amount}</Text>
-                <Text style={styles.method}>{item.method}</Text>
-              </View>
-              <Text style={styles.plates}>{item.plateCount} plates {item.freePlatesGiven > 0 && `(Free: ${item.freePlatesGiven})`}</Text>
-              <Text style={styles.customer}>{item.customer?.fullName || 'Walk-in'}</Text>
-              <Text style={styles.date}>{formatDate(item.createdAt)}</Text>
-            </View>
-          )}
+  <View style={styles.item}>
+    <View style={styles.itemHeader}>
+      <Text style={styles.amount}>₹{item.amount}</Text>
+      <Text style={styles.method}>{item.method}</Text>
+    </View>
+    <Text style={styles.plates}>
+      {item.plateCount} plates {item.freePlatesGiven > 0 && `(Free: ${item.freePlatesGiven})`}
+    </Text>
+    <Text style={styles.customer}>{item.customer?.fullName || 'Walk-in'}</Text>
+    <Text style={styles.date}>{formatDate(item.createdAt)}</Text>
+
+    {/* ONLY SHOW BUTTON IF PENDING */}
+    {item.status === 'PENDING_VENDOR' && (
+      <TouchableOpacity
+        style={styles.confirmButton}
+        onPress={() => confirmPayment(item._id)}
+      >
+        <Text style={styles.confirmText}>I Have Received Payment</Text>
+      </TouchableOpacity>
+    )}
+
+    {item.status === 'CONFIRMED' && (
+      <Text style={{ marginTop: 8, color: 'green', fontWeight: '600', textAlign: 'center' }}>
+        Confirmed • Loyalty Updated
+      </Text>
+    )}
+  </View>
+)}
         />
       </View>
     </>
@@ -82,7 +126,7 @@ const VendorSettlementsScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFCF7' },
+  container: { flex: 1, backgroundColor: '#fff7e6' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFCF7' },
   title: { fontSize: 26, fontWeight: '800', color: '#222', textAlign: 'center', paddingTop: 50, paddingBottom: 10 },
   summary: { paddingHorizontal: 20, paddingBottom: 16 },
@@ -94,6 +138,15 @@ const styles = StyleSheet.create({
   plates: { fontSize: 14, color: '#666', marginTop: 4 },
   customer: { fontSize: 15, fontWeight: '600', color: '#222', marginTop: 6 },
   date: { fontSize: 12, color: '#999', marginTop: 8 },
+  confirmButton: {
+    marginTop: 12,
+    backgroundColor: '#FF6B00',
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  confirmText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  confirmedStatus: { marginTop: 12, color: 'green', fontWeight: '600', textAlign: 'center' },
   empty: { textAlign: 'center', padding: 40, fontSize: 16, color: '#999' },
 });
 

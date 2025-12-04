@@ -55,7 +55,7 @@ const CustomerOffersScreen = () => {
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <View style={styles.titleRow}>
-            <MaterialIcons name="local-offer" size={20} color="#556B2F" />
+            <MaterialIcons name="local-offer" size={20} color="#ff6f00" />
             <Text style={styles.titleText}>{item.title}</Text>
           </View>
           <View style={styles.codeBadge}>
@@ -104,7 +104,7 @@ const CustomerOffersScreen = () => {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#556B2F" />
+        <ActivityIndicator size="large" color="#ff6f00" />
         <Text style={{ marginTop: 8, color: '#696969' }}>Loading offers...</Text>
       </View>
     );
@@ -124,7 +124,7 @@ const CustomerOffersScreen = () => {
   if (!offers.length) {
     return (
       <View style={styles.center}>
-        <MaterialIcons name="card-giftcard" size={40} color="#EEE8AA" />
+        <MaterialIcons name="card-giftcard" size={40} color="#ff6f00" />
         <Text style={{ marginTop: 12, fontSize: 16, fontWeight: '600' }}>
           No offers right now
         </Text>
@@ -153,11 +153,11 @@ const CustomerOffersScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF5EE',
+    backgroundColor: '#fff7e6',
   },
   center: {
     flex: 1,
-    backgroundColor: '#FFF5EE',
+    backgroundColor: '#fff7e6',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
@@ -167,12 +167,10 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   card: {
-    backgroundColor: '#FFF8DC',
+    backgroundColor: '#ffe2b8',
     borderRadius: 16,
     padding: 14,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#FAEBD7',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -189,23 +187,23 @@ const styles = StyleSheet.create({
   titleText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#696969',
+    color: '#ff6f00',
   },
   codeBadge: {
-    backgroundColor: '#EEE8AA',
+    backgroundColor: '#ff6f00',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 999,
   },
   codeText: {
-    color: '#556B2F',
+    color: '#ffffffff',
     fontWeight: '700',
     fontSize: 12,
   },
   descriptionText: {
     marginTop: 8,
     fontSize: 13,
-    color: '#808080',
+    color: '#ff6f00',
   },
   infoRow: {
     flexDirection: 'row',
@@ -217,30 +215,30 @@ const styles = StyleSheet.create({
     marginRight: 6,
     padding: 6,
     borderRadius: 10,
-    backgroundColor: '#FAFAD2',
+    backgroundColor: '#fff',
   },
   infoLabel: {
     fontSize: 11,
-    color: '#A9A9A9',
+    color: '#45423fff',
   },
   infoValue: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#696969',
+    color: '#45423fff',
   },
   validRow: {
     marginTop: 8,
   },
   validText: {
     fontSize: 12,
-    color: '#A9A9A9',
+    color: '#45423fff',
   },
   footerRow: {
     marginTop: 6,
   },
   footerHint: {
     fontSize: 11,
-    color: '#A9A9A9',
+    color: '#45423fff',
   },
   errorText: {
     color: '#c0392b',
@@ -249,7 +247,7 @@ const styles = StyleSheet.create({
   },
   retryText: {
     marginTop: 6,
-    color: '#556B2F',
+    color: '#ff6f00',
     fontWeight: '600',
   },
 });
