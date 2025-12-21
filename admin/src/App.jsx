@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 
 // CHANGE THIS ONLY IF YOUR BACKEND IS NOT ON localhost
-const API_BASE_URL = 'https://panipuriapp.onrender.com';
-// e.g. const API_BASE_URL = 'http://10.129.217.137:5000';
+// const API_BASE_URL = 'https://panipuriapp.onrender.com';
+const API_BASE_URL = 'http://localhost:5000';
 
 async function apiRequest(path, method = 'GET', body, token) {
   const headers = {
@@ -92,6 +92,8 @@ const App = () => {
   // Tabs: dashboard | vendors | offers
   const [activeTab, setActiveTab] = useState('dashboard');
 
+  
+
   // Vendors
   const [vendors, setVendors] = useState([]);
   const [vendorsLoading, setVendorsLoading] = useState(false);
@@ -99,6 +101,10 @@ const App = () => {
 
   // Offers
   const [offers, setOffers] = useState([]);
+  const [customers, setCustomers] = useState([]);
+const [customersLoading, setCustomersLoading] = useState(false);
+const [customersError, setCustomersError] = useState('');
+
   const [offersLoading, setOffersLoading] = useState(false);
   const [offersError, setOffersError] = useState('');
   const [creatingOffer, setCreatingOffer] = useState(false);
@@ -112,6 +118,21 @@ const App = () => {
     validFrom: '',
     validTo: '',
   });
+
+
+
+  const loadCustomers = async () => {
+  if (!token) return;
+  setCustomersLoading(true);
+  try {
+    const res = await apiRequest('/api/admin/customers', 'GET', null, token);
+    setCustomers(res.customers || []);
+  } catch (err) {
+    setCustomersError(err.message || 'Failed to load customers');
+  } finally {
+    setCustomersLoading(false);
+  }
+};
 
   // Load token from localStorage
   useEffect(() => {
@@ -265,12 +286,14 @@ const App = () => {
   };
 
   // Load vendors & offers when token is available
-  useEffect(() => {
-    if (token) {
-      loadVendors();
-      loadOffers();
-    }
-  }, [token]);
+useEffect(() => {
+  if (token) {
+    loadVendors();
+    loadOffers();
+    loadCustomers();
+  }
+}, [token]);
+
 
   if (initializing) {
     return <div style={styles.center}>Loading...</div>;
@@ -333,26 +356,36 @@ const App = () => {
         </button>
       </header>
 
-      <div style={styles.tabs}>
-        <button
-          style={activeTab === 'dashboard' ? styles.tabBtnActive : styles.tabBtn}
-          onClick={() => setActiveTab('dashboard')}
-        >
-          Dashboard
-        </button>
-        <button
-          style={activeTab === 'vendors' ? styles.tabBtnActive : styles.tabBtn}
-          onClick={() => setActiveTab('vendors')}
-        >
-          Vendors
-        </button>
-        <button
-          style={activeTab === 'offers' ? styles.tabBtnActive : styles.tabBtn}
-          onClick={() => setActiveTab('offers')}
-        >
-          Offers
-        </button>
-      </div>
+     <div style={styles.tabs}>
+  <button
+    style={activeTab === 'dashboard' ? styles.tabBtnActive : styles.tabBtn}
+    onClick={() => setActiveTab('dashboard')}
+  >
+    Dashboard
+  </button>
+
+  <button
+    style={activeTab === 'vendors' ? styles.tabBtnActive : styles.tabBtn}
+    onClick={() => setActiveTab('vendors')}
+  >
+    Vendors
+  </button>
+
+  <button
+    style={activeTab === 'customers' ? styles.tabBtnActive : styles.tabBtn}
+    onClick={() => setActiveTab('customers')}
+  >
+    Customers
+  </button>
+
+  <button
+    style={activeTab === 'offers' ? styles.tabBtnActive : styles.tabBtn}
+    onClick={() => setActiveTab('offers')}
+  >
+    Offers
+  </button>
+</div>
+
 
       {activeTab === 'dashboard' && (
         <div style={styles.content}>
@@ -445,6 +478,54 @@ const App = () => {
           )}
         </div>
       )}
+
+{activeTab === 'customers' && (
+  <div style={styles.content}>
+    <div style={styles.sectionHeader}>
+      <h3>Customer Activity</h3>
+      <button style={styles.reloadBtn} onClick={loadCustomers}>
+        Reload
+      </button>
+    </div>
+
+    {customersLoading ? (
+      <p>Loading customers...</p>
+    ) : customersError ? (
+      <div style={styles.error}>{customersError}</div>
+    ) : (
+      <table style={styles.table}>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Phone</th>
+            <th>Total Plates</th>
+            <th>Free Plates</th>
+            <th>Total Spent (₹)</th>
+            <th>Last Visit</th>
+          </tr>
+        </thead>
+        <tbody>
+          {customers.map((c) => (
+            <tr key={c._id}>
+              <td>{c.fullName}</td>
+              <td>{c.phone}</td>
+              <td>{c.totalPlates}</td>
+              <td>{c.totalFreePlates}</td>
+              <td>₹{c.totalAmountSpent}</td>
+              <td>
+                {c.lastVisitedAt
+                  ? new Date(c.lastVisitedAt).toLocaleDateString()
+                  : '—'}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    )}
+  </div>
+)}
+
+
 
       {activeTab === 'offers' && (
         <div style={styles.content}>

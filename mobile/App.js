@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, ActivityIndicator, Text } from 'react-native';
+import { View, ActivityIndicator, Text, StyleSheet, Image } from 'react-native';
 
 import { AuthProvider, AuthContext } from './src/context/AuthContext';
 import LoginScreen from './src/screens/LoginScreen';
@@ -19,12 +19,41 @@ import VendorProfileScreen from './src/screens/vendors/VendorProfileScreen';
 import PaymentScreen from './src/screens/Customers/PaymentScreen';
 import CustomerReferralScreen from './src/screens/Customers/CustomerReferralScreen';
 
-
-
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// Customer bottom tabs
+const LogoHeader = ({ title }) => (
+  <View style={headerStyles.container}>
+    <Text style={headerStyles.title}>{title}</Text>
+    <Image
+      source={require('./assets/images/icon.png')}
+      style={headerStyles.logo}
+    />
+  </View>
+);
+
+
+const headerStyles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: 16,
+  },
+  title: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  logo: {
+    width: 80,     // ⬅️ bigger logo
+    height: 80,    // ⬅️ bigger logo
+    resizeMode: 'contain',
+  },
+});
+
+
 const CustomerTabs = () => {
   return (
     <Tab.Navigator
@@ -34,6 +63,7 @@ const CustomerTabs = () => {
         tabBarActiveTintColor: '#ff8a00',
         tabBarInactiveTintColor: '#777',
         tabBarStyle: { backgroundColor: '#fff' },
+        headerTitle: () => <LogoHeader title={route.name} />,
 
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
@@ -50,28 +80,23 @@ const CustomerTabs = () => {
 
           return <Ionicons name={iconName} size={24} color={color} />;
         },
-
       })}
     >
       <Tab.Screen
         name="Home"
         component={CustomerHomeScreen}
-        options={{ title: 'Home' }}
       />
       <Tab.Screen
         name="Vendors"
         component={VendorsScreen}
-        options={{ title: 'Vendors' }}
       />
       <Tab.Screen
         name="Offers"
         component={OffersScreen}
-        options={{ title: 'Offers' }}
       />
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
-        options={{ title: 'Profile' }}
       />
     </Tab.Navigator>
   );
@@ -86,6 +111,7 @@ const VendorTabs = () => {
         tabBarActiveTintColor: '#ff8a00',
         tabBarInactiveTintColor: '#777',
         tabBarStyle: { backgroundColor: '#fff' },
+        headerTitle: () => <LogoHeader title={route.name === 'VendorDashboard' ? 'Dashboard' : route.name === 'VendorServe' ? 'Serve' : route.name === 'VendorSettlements' ? 'Settlements' : 'Profile'} />,
 
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
@@ -128,8 +154,6 @@ const VendorTabs = () => {
   );
 };
 
-
-
 const RootNavigator = () => {
   const { authLoading, user } = useContext(AuthContext);
 
@@ -142,7 +166,6 @@ const RootNavigator = () => {
     );
   }
 
-  // Not logged in -> Auth stack
   if (!user) {
     return (
       <Stack.Navigator>
@@ -160,37 +183,43 @@ const RootNavigator = () => {
     );
   }
 
-  // Vendor -> Vendor Dashboard (we'll add vendor tabs later)
   if (user.role === 'vendor') {
+    return (
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="VendorTabs" component={VendorTabs} />
+      </Stack.Navigator>
+    );
+  }
+
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="VendorTabs" component={VendorTabs} />
+    <Stack.Navigator>
+      <Stack.Screen
+        name="CustomerTabs"
+        component={CustomerTabs}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Payment"
+        component={PaymentScreen}
+        options={{
+          title: 'Payment',
+          headerStyle: { backgroundColor: '#ff8a00' },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: '700' },
+        }}
+      />
+      <Stack.Screen
+        name="Referral"
+        component={CustomerReferralScreen}
+        options={{
+          title: 'Referral & Earn',
+          headerStyle: { backgroundColor: '#ff8a00' },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: '700' },
+        }}
+      />
     </Stack.Navigator>
   );
-}
-
-
-  // Default -> Customer tabs
-  return (
-  <Stack.Navigator>
-    <Stack.Screen
-      name="CustomerTabs"
-      component={CustomerTabs}
-      options={{ headerShown: false }}
-    />
-    <Stack.Screen
-      name="Payment"
-      component={PaymentScreen}
-      options={{ title: 'Payment' }}
-    />
-    <Stack.Screen
-  name="Referral"
-  component={CustomerReferralScreen}
-  options={{ title: 'Referral & Earn' }}
-/>
-  </Stack.Navigator>
-);
-
 };
 
 export default function App() {

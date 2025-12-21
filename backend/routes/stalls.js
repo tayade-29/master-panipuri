@@ -62,48 +62,45 @@ router.post('/request-edit', auth, requireVendor, async (req, res) => {
  *   lat, lng (optional)
  *   radius (meters, optional; default 3000)
  */
+// backend/routes/stalls.js  (only the GET / route changed)
+
 router.get('/', async (req, res) => {
   try {
-    const { lat, lng, radius } = req.query;
+    const { lat, lng, radius = 3000 } = req.query;
+
+    const populateVendor = {
+      path: 'vendor',
+      match: { vendorStatus: 'APPROVED' },   // ← THIS LINE IS THE KEY
+      select: 'fullName',
+    };
+
     let stalls;
 
     if (lat && lng) {
       const latitude = Number(lat);
       const longitude = Number(lng);
-      const radiusInMeters = radius ? Number(radius) : 3000; // 3 km
-
-      if (
-        Number.isNaN(latitude) ||
-        Number.isNaN(longitude) ||
-        Number.isNaN(radiusInMeters)
-      ) {
-        return res.status(400).json({ message: 'Invalid lat/lng/radius' });
-      }
+      const r = Number(radius);
 
       stalls = await Stall.find({
         isOpen: true,
         location: {
           $near: {
-            $geometry: {
-              type: 'Point',
-              coordinates: [longitude, latitude], // [lng, lat]
-            },
-            $maxDistance: radiusInMeters,
+            $geometry: { type: 'Point', coordinates: [longitude, latitude] },
+            $maxDistance: r,
           },
         },
-      }).populate('vendor', 'fullName');
+      }).populate(populateVendor);
     } else {
-      // No location provided -> just return all open stalls
-      stalls = await Stall.find({ isOpen: true }).populate(
-        'vendor',
-        'fullName'
-      );
+      stalls = await Stall.find({ isOpen: true }).populate(populateVendor);
     }
 
-    return res.json({ stalls });
+    // Remove stalls where vendor was filtered out (not approved)
+    const filtered = stalls.filter((s) => s.vendor !== null);
+
+    res.json({ stalls: filtered });
   } catch (err) {
     console.error('Get stalls error:', err.message);
-    return res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

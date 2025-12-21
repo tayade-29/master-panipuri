@@ -1,4 +1,3 @@
-// mobile/src/screens/Customers/CustomerOffersScreen.js
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -7,6 +6,7 @@ import {
   FlatList,
   ActivityIndicator,
   RefreshControl,
+  TouchableOpacity,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
@@ -47,55 +47,62 @@ const CustomerOffersScreen = () => {
     fetchOffers();
   };
 
-  const renderOfferItem = ({ item }) => {
-    const validFrom = item.validFrom ? item.validFrom.slice(0, 10) : '';
+  const getColorScheme = (index) => {
+    const schemes = [
+      { bg: '#1ABC9C', light: '#16A085', accent: '#0D5D4B' },
+      { bg: '#F39C12', light: '#E67E22', accent: '#C86812' },
+      { bg: '#9B59B6', light: '#8E44AD', accent: '#6C3483' },
+      { bg: '#E74C3C', light: '#C0392B', accent: '#A93226' },
+      { bg: '#3498DB', light: '#2980B9', accent: '#1F618D' },
+      { bg: '#16A085', light: '#138D75', accent: '#0B5345' },
+    ];
+    return schemes[index % schemes.length];
+  };
+
+  const renderOfferItem = ({ item, index }) => {
     const validTo = item.validTo ? item.validTo.slice(0, 10) : '';
+    const colors = getColorScheme(index);
 
     return (
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <View style={styles.titleRow}>
-            <MaterialIcons name="local-offer" size={20} color="#ff6f00" />
-            <Text style={styles.titleText}>{item.title}</Text>
+      <View style={[styles.card, { backgroundColor: colors.bg }]}>
+        <View style={styles.cardContent}>
+          <View style={styles.leftSection}>
+            <View>
+              <Text style={styles.mainOffer}>
+                {item.discountType === 'percentage'
+                  ? `${item.discountValue}% OFF`
+                  : `₹${item.discountValue} OFF`}
+              </Text>
+              <Text style={styles.offerTitle}>{item.title}</Text>
+              {item.description && (
+                <Text style={styles.description} numberOfLines={1}>{item.description}</Text>
+              )}
+              <TouchableOpacity style={styles.useNowBtn}>
+                <Text style={styles.useNowText}>Use Now</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-          <View style={styles.codeBadge}>
-            <Text style={styles.codeText}>{item.code}</Text>
-          </View>
-        </View>
 
-        {item.description ? (
-          <Text style={styles.descriptionText} numberOfLines={2}>
-            {item.description}
-          </Text>
-        ) : null}
-
-        <View style={styles.infoRow}>
-          <View style={styles.infoChip}>
-            <Text style={styles.infoLabel}>Type</Text>
-            <Text style={styles.infoValue}>{item.discountType}</Text>
+          <View style={styles.rightSection}>
+            <View style={[styles.codeBadge, { backgroundColor: colors.accent }]}>
+              <Text style={styles.codeLabel}>CODE</Text>
+              <Text style={styles.codeText}>{item.code}</Text>
+            </View>
+            <View style={styles.infoStack}>
+              <View style={styles.infoPill}>
+                <MaterialIcons name="shopping-cart" size={12} color={colors.bg} />
+                <Text style={[styles.infoPillText, { color: colors.bg }]}>
+                  Min ₹{item.minOrderAmount || 0}
+                </Text>
+              </View>
+              <View style={styles.infoPill}>
+                <MaterialIcons name="schedule" size={12} color={colors.bg} />
+                <Text style={[styles.infoPillText, { color: colors.bg }]}>
+                  {validTo}
+                </Text>
+              </View>
+            </View>
           </View>
-          <View style={styles.infoChip}>
-            <Text style={styles.infoLabel}>Value</Text>
-            <Text style={styles.infoValue}>{item.discountValue}</Text>
-          </View>
-          <View style={styles.infoChip}>
-            <Text style={styles.infoLabel}>Min Amount</Text>
-            <Text style={styles.infoValue}>
-              ₹{item.minOrderAmount || 0}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.validRow}>
-          <Text style={styles.validText}>
-            Valid: {validFrom} - {validTo}
-          </Text>
-        </View>
-
-        <View style={styles.footerRow}>
-          <Text style={styles.footerHint}>
-            Apply this code on payment to get the offer.
-          </Text>
         </View>
       </View>
     );
@@ -104,8 +111,10 @@ const CustomerOffersScreen = () => {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#ff6f00" />
-        <Text style={{ marginTop: 8, color: '#696969' }}>Loading offers...</Text>
+        <ActivityIndicator size="large" color="#1ABC9C" />
+        <Text style={{ marginTop: 8, color: '#1ABC9C', fontWeight: '600' }}>
+          Loading offers...
+        </Text>
       </View>
     );
   }
@@ -113,10 +122,11 @@ const CustomerOffersScreen = () => {
   if (error && !offers.length) {
     return (
       <View style={styles.center}>
+        <MaterialIcons name="error-outline" size={40} color="#E74C3C" />
         <Text style={styles.errorText}>{error}</Text>
-        <Text style={styles.retryText} onPress={fetchOffers}>
-          Tap to retry
-        </Text>
+        <TouchableOpacity onPress={fetchOffers}>
+          <Text style={styles.retryText}>Tap to retry</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -124,12 +134,12 @@ const CustomerOffersScreen = () => {
   if (!offers.length) {
     return (
       <View style={styles.center}>
-        <MaterialIcons name="card-giftcard" size={40} color="#ff6f00" />
-        <Text style={{ marginTop: 12, fontSize: 16, fontWeight: '600' }}>
+        <MaterialIcons name="card-giftcard" size={48} color="#1ABC9C" />
+        <Text style={{ marginTop: 12, fontSize: 16, fontWeight: '700', color: '#2C3E50' }}>
           No offers right now
         </Text>
-        <Text style={{ marginTop: 4, color: '#808080', textAlign: 'center' }}>
-          Check back later for new deals on your favourite panipuri stalls.
+        <Text style={{ marginTop: 4, color: '#7F8C8D', textAlign: 'center', fontSize: 13 }}>
+          Check back later for amazing deals on your favourite panipuri stalls.
         </Text>
       </View>
     );
@@ -143,7 +153,7 @@ const CustomerOffersScreen = () => {
         renderItem={renderOfferItem}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#1ABC9C']} />
         }
       />
     </View>
@@ -167,88 +177,108 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   card: {
-    backgroundColor: '#ffe2b8',
     borderRadius: 16,
-    padding: 14,
     marginBottom: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  cardHeader: {
+  cardContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+  leftSection: {
     flex: 1,
-    marginRight: 8,
+    marginRight: 12,
   },
-  titleText: {
-    fontSize: 16,
+  mainOffer: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  offerTitle: {
+    fontSize: 14,
     fontWeight: '600',
-    color: '#ff6f00',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  description: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.85)',
+    marginBottom: 10,
+    fontWeight: '500',
+  },
+  useNowBtn: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+  },
+  useNowText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#2C3E50',
+  },
+  rightSection: {
+    alignItems: 'center',
+    gap: 10,
   },
   codeBadge: {
-    backgroundColor: '#ff6f00',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    minWidth: 70,
+  },
+  codeLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.8,
   },
   codeText: {
-    color: '#ffffffff',
-    fontWeight: '700',
-    fontSize: 12,
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+    marginTop: 2,
   },
-  descriptionText: {
-    marginTop: 8,
-    fontSize: 13,
-    color: '#ff6f00',
+  infoStack: {
+    gap: 6,
   },
-  infoRow: {
+  infoPill: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
     flexDirection: 'row',
-    marginTop: 10,
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 4,
   },
-  infoChip: {
-    flex: 1,
-    marginRight: 6,
-    padding: 6,
-    borderRadius: 10,
-    backgroundColor: '#fff',
-  },
-  infoLabel: {
-    fontSize: 11,
-    color: '#45423fff',
-  },
-  infoValue: {
-    fontSize: 13,
+  infoPillText: {
+    fontSize: 10,
     fontWeight: '600',
-    color: '#45423fff',
-  },
-  validRow: {
-    marginTop: 8,
-  },
-  validText: {
-    fontSize: 12,
-    color: '#45423fff',
-  },
-  footerRow: {
-    marginTop: 6,
-  },
-  footerHint: {
-    fontSize: 11,
-    color: '#45423fff',
   },
   errorText: {
-    color: '#c0392b',
+    color: '#E74C3C',
     fontSize: 14,
     textAlign: 'center',
+    marginTop: 12,
+    fontWeight: '600',
   },
   retryText: {
-    marginTop: 6,
-    color: '#ff6f00',
-    fontWeight: '600',
+    marginTop: 12,
+    color: '#E74C3C',
+    fontWeight: '700',
+    fontSize: 14,
   },
 });
 

@@ -3,6 +3,8 @@ const express = require('express');
 const auth = require('../middleware/auth');
 const User = require('../models/User');
 const Stall = require('../models/Stall');
+const Payment = require('../models/Payment');
+
 
 const router = express.Router();
 
@@ -144,5 +146,67 @@ router.patch('/vendors/:id/reject-edit', auth, requireAdmin, async (req, res) =>
     return res.status(500).json({ message: 'Server error' });
   }
 });
+
+// ✅ GET ALL CUSTOMERS WITH FULL ACTIVITY SUMMARY (SAFE VERSION)
+router.get('/customers', auth, requireAdmin, async (req, res) => {
+  try {
+    const customers = await User.find({ role: 'customer' })
+      .select('fullName phone createdAt')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!customers.length) {
+      return res.json({ customers: [] });
+    }
+
+    const customerIds = customers.map(c => c._id);
+
+    const payments = await Payment.find({
+      customer: { $in: customerIds },
+      status: 'CONFIRMED'
+    }).lean();
+
+    const customerMap = {};
+
+    // Initialize customer map
+    customers.forEach(c => {
+      customerMap[c._id.toString()] = {
+        _id: c._id,
+        fullName: c.fullName,
+        phone: c.phone,
+        totalPlates: 0,
+        totalFreePlates: 0,
+        totalAmountSpent: 0,
+        lastVisitedAt: null,
+      };
+    });
+
+    // Aggregate payments safely
+    payments.forEach(p => {
+      const id = p.customer?.toString();
+      if (!customerMap[id]) return;
+
+      customerMap[id].totalPlates += p.plateCount || 0;
+      customerMap[id].totalFreePlates += p.freePlatesGiven || 0;
+      customerMap[id].totalAmountSpent += p.amount || 0;
+
+      if (
+        !customerMap[id].lastVisitedAt ||
+        customerMap[id].lastVisitedAt < p.createdAt
+      ) {
+        customerMap[id].lastVisitedAt = p.createdAt;
+      }
+    });
+
+    return res.json({
+      customers: Object.values(customerMap),
+    });
+  } catch (err) {
+    console.error('ADMIN CUSTOMER API CRASH:', err); // 👈 VERY IMPORTANT LOG
+    return res.status(500).json({ message: 'Admin customers API failed' });
+  }
+});
+
+
 
 module.exports = router;
